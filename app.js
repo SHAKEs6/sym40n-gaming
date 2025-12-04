@@ -163,6 +163,146 @@ DataManager.markNotificationRead = function(id) {
     } catch (e) { console.warn(e); return false; }
 };
 
+// Announcements
+DataManager.setAnnouncement = function(message) {
+    try {
+        const note = {
+            id: 'a_' + Date.now(),
+            message: message,
+            createdAt: new Date().toISOString()
+        };
+        localStorage.setItem('siteAnnouncement', JSON.stringify(note));
+        // also add to notifications for admin history
+        this.addNotification('Announcement sent: ' + (message.length > 60 ? message.slice(0,60) + '…' : message), 'info');
+        return note;
+    } catch (e) { console.warn(e); return null; }
+};
+
+DataManager.getAnnouncement = function() {
+    return JSON.parse(localStorage.getItem('siteAnnouncement') || 'null');
+};
+
+// Music management
+DataManager.addMusic = function(title, url) {
+    try {
+        let mus = JSON.parse(localStorage.getItem('siteMusic') || '[]');
+        const entry = { id: 'm_' + Date.now(), title: title, url: url, addedAt: new Date().toISOString() };
+        mus.push(entry);
+        localStorage.setItem('siteMusic', JSON.stringify(mus));
+        this.addNotification('New music added: ' + title, 'info');
+        return entry;
+    } catch (e) { console.warn(e); return null; }
+};
+
+DataManager.getMusic = function() {
+    return JSON.parse(localStorage.getItem('siteMusic') || '[]');
+};
+
+DataManager.removeMusic = function(id) {
+    try {
+        let mus = JSON.parse(localStorage.getItem('siteMusic') || '[]');
+        mus = mus.filter(m => m.id !== id);
+        localStorage.setItem('siteMusic', JSON.stringify(mus));
+        this.addNotification('Music removed', 'info');
+        return true;
+    } catch (e) { console.warn(e); return false; }
+};
+
+// Show announcement to users on page load if unseen
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const ann = DataManager.getAnnouncement();
+        if (!ann) return;
+        const lastSeen = localStorage.getItem('lastSeenAnnouncement');
+        if (lastSeen !== ann.id) {
+            // show persistent banner and a notification
+            showAnnouncementBanner(ann);
+            showNotification('Announcement: ' + ann.message, 'info');
+            // mark as seen for this client
+            localStorage.setItem('lastSeenAnnouncement', ann.id);
+        } else {
+            // still render banner (optional) if you want
+            renderAnnouncementBanner(ann);
+        }
+    } catch (e) { console.warn('announcement check failed', e); }
+});
+
+function renderAnnouncementBanner(ann) {
+    try {
+        if (!ann) return;
+        let banner = document.getElementById('site-announcement-banner');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'site-announcement-banner';
+            banner.style.cssText = 'position:fixed; top:60px; left:0; right:0; background:linear-gradient(90deg,#222,#111); color:#edff66; padding:12px 18px; text-align:center; z-index:9999; font-weight:700;';
+            document.body.appendChild(banner);
+        }
+        banner.textContent = ann.message;
+    } catch (e) { console.warn(e); }
+}
+
+function showAnnouncementBanner(ann) {
+    renderAnnouncementBanner(ann);
+    // Auto-hide after 20s
+    setTimeout(() => {
+        const b = document.getElementById('site-announcement-banner');
+        if (b) b.remove();
+    }, 20000);
+}
+
+// Music player UI injected on every page
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const musicList = DataManager.getMusic();
+        if (!musicList || musicList.length === 0) return;
+
+        // Create player container
+        let player = document.getElementById('site-music-player');
+        if (!player) {
+            player = document.createElement('div');
+            player.id = 'site-music-player';
+            player.style.cssText = 'position:fixed; bottom:16px; right:16px; background:rgba(0,0,0,0.7); color:white; padding:8px 12px; border-radius:10px; z-index:9999; display:flex; gap:8px; align-items:center;';
+            document.body.appendChild(player);
+        }
+
+        const audio = document.createElement('audio');
+        audio.id = 'site-audio';
+        audio.controls = false;
+        audio.style.display = 'none';
+        player.appendChild(audio);
+
+        const titleEl = document.createElement('div');
+        titleEl.id = 'music-title';
+        titleEl.style.maxWidth = '220px';
+        titleEl.style.overflow = 'hidden';
+        titleEl.style.textOverflow = 'ellipsis';
+        player.appendChild(titleEl);
+
+        const prevBtn = document.createElement('button'); prevBtn.textContent = '⏮';
+        const playBtn = document.createElement('button'); playBtn.textContent = '⏯';
+        const nextBtn = document.createElement('button'); nextBtn.textContent = '⏭';
+        [prevBtn, playBtn, nextBtn].forEach(b => { b.style.background='transparent'; b.style.border='none'; b.style.color='white'; b.style.cursor='pointer'; player.appendChild(b); });
+
+        let idx = Number(sessionStorage.getItem('site-music-idx') || 0);
+        function loadTrack(i) {
+            if (!musicList || musicList.length === 0) return;
+            idx = ((i % musicList.length) + musicList.length) % musicList.length;
+            const t = musicList[idx];
+            audio.src = t.url;
+            titleEl.textContent = t.title;
+            sessionStorage.setItem('site-music-idx', String(idx));
+        }
+
+        prevBtn.onclick = () => { loadTrack(idx-1); audio.play().catch(()=>{}); };
+        nextBtn.onclick = () => { loadTrack(idx+1); audio.play().catch(()=>{}); };
+        playBtn.onclick = () => { if (audio.paused) audio.play().catch(()=>{}); else audio.pause(); };
+
+        audio.onended = () => { loadTrack(idx+1); audio.play().catch(()=>{}); };
+
+        loadTrack(idx);
+    } catch (e) { console.warn('music player init failed', e); }
+});
+
 
 // ==================
 // Auto-Login Check

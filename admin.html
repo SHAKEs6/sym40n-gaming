@@ -251,6 +251,7 @@
                 <li><a href="#" onclick="showPanel('dashboard')" class="menu-link active"><i class='bx bx-chart'></i> Dashboard</a></li>
                 <li><a href="#" onclick="showPanel('messages')" class="menu-link"><i class='bx bx-message'></i> Messages</a></li>
                 <li><a href="#" onclick="showPanel('users')" class="menu-link"><i class='bx bx-user'></i> Users</a></li>
+                <li><a href="#" onclick="showPanel('music')" class="menu-link"><i class='bx bx-music'></i> Music</a></li>
                 <li><a href="#" onclick="showPanel('content')" class="menu-link"><i class='bx bx-file'></i> Content</a></li>
                 <li><a href="#" onclick="showPanel('settings')" class="menu-link"><i class='bx bx-cog'></i> Settings</a></li>
                 <li style="border-top: 1px solid rgba(237, 255, 102, 0.2); margin-top: 20px; padding-top: 10px;"><a href="#" onclick="logoutAdmin()" class="menu-link" style="color: #ff6b6b;"><i class='bx bx-log-out'></i> Logout</a></li>
@@ -367,6 +368,35 @@
                 </div>
             </div>
 
+            <!-- Music Panel -->
+            <div id="music" class="content-panel">
+                <h2 style="color: white;">Site Music</h2>
+                <div class="card">
+                    <h3>Add Track</h3>
+                    <form onsubmit="addMusic(event)">
+                        <div class="form-group">
+                            <label for="music-title">Title</label>
+                            <input id="music-title" placeholder="Track title" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="music-url">Audio URL (mp3 / ogg)</label>
+                            <input id="music-url" placeholder="https://.../track.mp3" required />
+                        </div>
+                        <button class="submit-btn" type="submit">Add Music</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h3>Current Tracks</h3>
+                    <table id="music-table">
+                        <thead>
+                            <tr><th>Title</th><th>URL</th><th></th></tr>
+                        </thead>
+                        <tbody id="music-body"><tr><td colspan="3" style="text-align:center;color:gray;">No tracks added</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Settings Panel -->
             <div id="settings" class="content-panel">
                 <h2 style="color: white;">Settings</h2>
@@ -401,9 +431,10 @@
             }
 
                 // Load stored data
-                loadUserData();
-                renderNotifications();
-                updateStats();
+                    loadUserData();
+                    renderNotifications();
+                    renderMusicList();
+                    updateStats();
         });
 
         // Switch between panels
@@ -487,6 +518,54 @@
             } catch (e) { console.warn(e); }
         }
 
+        // Music management helpers (uses localStorage siteMusic)
+        function addMusic(e) {
+            e.preventDefault();
+            const title = document.getElementById('music-title').value.trim();
+            const url = document.getElementById('music-url').value.trim();
+            if (!title || !url) return alert('Provide title and url');
+            try {
+                // Use DataManager if available
+                if (window.DataManager && DataManager.addMusic) {
+                    DataManager.addMusic(title, url);
+                } else {
+                    let mus = JSON.parse(localStorage.getItem('siteMusic') || '[]');
+                    mus.push({ id: 'm_' + Date.now(), title, url, addedAt: new Date().toISOString() });
+                    localStorage.setItem('siteMusic', JSON.stringify(mus));
+                }
+                document.getElementById('music-title').value = '';
+                document.getElementById('music-url').value = '';
+                renderMusicList();
+                alert('Music added');
+            } catch (err) { console.warn(err); alert('Failed to add music'); }
+        }
+
+        function renderMusicList() {
+            const body = document.getElementById('music-body');
+            const mus = JSON.parse(localStorage.getItem('siteMusic') || '[]');
+            if (!mus || mus.length === 0) { body.innerHTML = `<tr><td colspan="3" style="text-align:center;color:gray;">No tracks added</td></tr>`; return; }
+            body.innerHTML = '';
+            mus.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${t.title}</td><td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;">${t.url}</td><td><button class="submit-btn" onclick="removeMusic('${t.id}')">Remove</button></td>`;
+                body.appendChild(tr);
+            });
+        }
+
+        function removeMusic(id) {
+            if (!confirm('Remove track?')) return;
+            try {
+                if (window.DataManager && DataManager.removeMusic) {
+                    DataManager.removeMusic(id);
+                } else {
+                    let mus = JSON.parse(localStorage.getItem('siteMusic') || '[]');
+                    mus = mus.filter(m => m.id !== id);
+                    localStorage.setItem('siteMusic', JSON.stringify(mus));
+                }
+                renderMusicList();
+            } catch (e) { console.warn(e); }
+        }
+
         // Update statistics
         function updateStats() {
             const now = new Date();
@@ -517,5 +596,6 @@
             alert('Settings saved successfully!');
         }
     </script>
+    <script src="app.js"></script>
 </body>
 </html>
