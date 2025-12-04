@@ -4,6 +4,7 @@
   "description": "Sym40n Gaming Platform - static site",
   "private": true,
   "scripts": {
-    "build": "echo \"No build required for static site\""
+    "build": "echo \"No build required for static site\"",
+    "start": "npx serve -s . -l $PORT"
   }
 }
