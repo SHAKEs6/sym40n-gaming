@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Login - Sym40n Gaming</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
+
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <style>
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #000000 0%, #1a1a2e 100%);
+            padding: 20px;
+        }
+
+        .login-box {
+            background: rgba(75, 75, 75, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(237, 255, 102, 0.2);
+            border-radius: 20px;
+            padding: 50px 40px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .login-box h1 {
+            font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+            font-size: 40px;
+            color: #edff66;
+            text-align: center;
+            margin-bottom: 10px;
+            margin-top: 0;
+        }
+
+        .login-box p {
+            text-align: center;
+            color: gray;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: white;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid gray;
+            border-radius: 8px;
+            background-color: #1a1a1a;
+            color: white;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #edff66;
+            box-shadow: 0 0 10px rgba(237, 255, 102, 0.3);
+        }
+
+        .form-group input::placeholder {
+            color: #666;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #edff66;
+            color: black;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+
+        .login-btn:hover {
+            background-color: #d4ff33;
+            box-shadow: 0 0 15px rgba(237, 255, 102, 0.5);
+        }
+
+        .signup-link {
+            text-align: center;
+            margin-top: 20px;
+            color: gray;
+        }
+
+        .signup-link a {
+            color: #edff66;
+            text-decoration: none;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .signup-link a:hover {
+            text-decoration: underline;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        .back-link a {
+            color: #edff66;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.3s;
+        }
+
+        .back-link a:hover {
+            gap: 12px;
+        }
+
+        .error-message {
+            color: #ff6b6b;
+            font-size: 13px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .success-message {
+            background-color: rgba(237, 255, 102, 0.1);
+            border: 1px solid #edff66;
+            color: #edff66;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <div class="back-link">
+                <a href="index.html"><i class='bx bx-arrow-back'></i> Back to Home</a>
+            </div>
+
+            <h1>LOGIN</h1>
+            <p>Welcome back to Sym40n</p>
+
+            <div class="success-message" id="success-msg"></div>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        placeholder="Enter your email" 
+                        required
+                    >
+                    <div class="error-message" id="email-error"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="Enter your password" 
+                        required
+                    >
+                    <div class="error-message" id="password-error"></div>
+                </div>
+
+                <div style="text-align: right; margin-bottom: 20px;">
+                    <a href="#" style="color: #edff66; text-decoration: none; font-size: 13px;">Forgot Password?</a>
+                </div>
+
+                <button type="submit" class="login-btn">Sign In</button>
+            </form>
+
+            <div class="signup-link">
+                Don't have an account? <a href="signup.html">Sign Up</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Hidden admin access - press 'A' three times quickly
+        let keyPressCount = 0;
+        let keyPressTimeout;
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key.toLowerCase() === 'a') {
+                keyPressCount++;
+                
+                clearTimeout(keyPressTimeout);
+                keyPressTimeout = setTimeout(() => {
+                    keyPressCount = 0;
+                }, 500);
+
+                if (keyPressCount === 3) {
+                    showAdminLogin();
+                    keyPressCount = 0;
+                }
+            }
+        });
+
+        function showAdminLogin() {
+            const adminPassword = prompt('Enter Admin Password:');
+            if (adminPassword === 'admin@2025') {
+                localStorage.setItem('adminToken', Date.now());
+                window.location.href = 'admin.html';
+            } else if (adminPassword !== null) {
+                alert('Invalid admin password!');
+            }
+        }
+
+        // Handle login form submission
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const emailError = document.getElementById('email-error');
+            const passwordError = document.getElementById('password-error');
+            const successMsg = document.getElementById('success-msg');
+
+            // Reset error messages
+            emailError.style.display = 'none';
+            passwordError.style.display = 'none';
+            successMsg.style.display = 'none';
+
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                emailError.textContent = 'Please enter a valid email address';
+                emailError.style.display = 'block';
+                return;
+            }
+
+            // Get registered users
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+
+            // Check if user exists
+            if (!users[email]) {
+                emailError.textContent = 'Email not found. Please sign up first.';
+                emailError.style.display = 'block';
+                return;
+            }
+
+            // Check password
+            if (users[email].password !== password) {
+                passwordError.textContent = 'Incorrect password';
+                passwordError.style.display = 'block';
+                return;
+            }
+
+            // Login successful
+            successMsg.textContent = '✓ Login successful! Redirecting...';
+            successMsg.style.display = 'block';
+            successMsg.style.color = '#4ade80';
+            successMsg.style.backgroundColor = 'rgba(74, 222, 128, 0.2)';
+
+            // Store user info using DataManager
+            const userName = users[email].fullName || users[email].fullname || users[email].name || 'User';
+            DataManager.setSession(email, userName);
+            localStorage.setItem('lastLogin', new Date().toLocaleString());
+
+            // Get redirect URL from query parameter or default to games
+            const urlParams = new URLSearchParams(window.location.search);
+            const redirectUrl = urlParams.get('redirect') || 'games.html';
+
+            // Redirect after 1 second
+            setTimeout(() => {
+                window.location.href = redirectUrl;
+            }, 1000);
+        });
+
+        // Check if user is already logged in
+        window.addEventListener('load', function() {
+            const currentUser = localStorage.getItem('currentUser');
+            if (currentUser) {
+                console.log('User already logged in as:', currentUser);
+            }
+        });
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>

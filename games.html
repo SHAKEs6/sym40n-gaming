@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Games - Sym40n Gaming</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
+
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <style>
+        .games-hero {
+            position: relative;
+            width: 100%;
+            height: 60vh;
+            background: linear-gradient(135deg, #000000 0%, #1a1a2e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .games-hero h1 {
+            font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+            font-size: 80px;
+            color: #edff66;
+            margin: 0;
+            background: linear-gradient(to right, #4acfee, #53f8c9, #02d79a, #6070fd, #2a46ff, #0099ff, #4acfee);
+            background-size: 200%;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: animate-gradient 2.5s linear infinite;
+        }
+
+        .games-hero p {
+            font-size: 24px;
+            color: gray;
+            max-width: 600px;
+            margin-top: 20px;
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            padding: 60px 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .game-card {
+            background: rgba(75, 75, 75, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(237, 255, 102, 0.2);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: 0.3s;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .game-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 0 20px rgba(237, 255, 102, 0.3);
+            border-color: rgba(237, 255, 102, 0.5);
+        }
+
+        .game-card-header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 100%);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(237, 255, 102, 0.2);
+        }
+
+        .game-card-header h2 {
+            color: #edff66;
+            font-size: 28px;
+            margin: 0 0 10px 0;
+            font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+        }
+
+        .game-genre {
+            display: inline-block;
+            background-color: rgba(237, 255, 102, 0.2);
+            color: #edff66;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .game-card-body {
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .game-description {
+            color: white;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            flex: 1;
+        }
+
+        .game-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 15px 0;
+            border-top: 1px solid rgba(237, 255, 102, 0.1);
+            border-bottom: 1px solid rgba(237, 255, 102, 0.1);
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            color: gray;
+            font-size: 12px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #edff66;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .game-rating {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stars {
+            color: #ffc107;
+            font-size: 16px;
+        }
+
+        .rating-text {
+            color: gray;
+            font-size: 14px;
+        }
+
+        .play-btn {
+            background-color: #edff66;
+            color: black;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 14px;
+        }
+
+        .play-btn:hover {
+            background-color: #d4ff33;
+            box-shadow: 0 0 15px rgba(237, 255, 102, 0.5);
+        }
+
+        .play-btn.soon {
+            background-color: #666;
+            color: white;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .platform-badge {
+            display: inline-block;
+            background-color: rgba(237, 255, 102, 0.1);
+            color: #edff66;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            margin-right: 5px;
+            margin-top: 8px;
+        }
+
+        /* Download Modal Styles */
+        .download-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+
+        .download-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: rgba(75, 75, 75, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(237, 255, 102, 0.3);
+            border-radius: 20px;
+            padding: 40px;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .modal-content h2 {
+            color: #edff66;
+            margin-top: 0;
+            font-size: 28px;
+        }
+
+        .modal-content p {
+            color: white;
+            margin: 15px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+            border: 1px solid rgba(237, 255, 102, 0.3);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(to right, #edff66, #ffff00, #edff66);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: black;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .download-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-item {
+            background: rgba(237, 255, 102, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(237, 255, 102, 0.2);
+        }
+
+        .stat-item label {
+            color: gray;
+            font-size: 12px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .stat-item value {
+            color: #edff66;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .close-btn {
+            background-color: #edff66;
+            color: black;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 20px;
+            transition: 0.3s;
+        }
+
+        .close-btn:hover {
+            background-color: #d4ff33;
+        }
+
+        .downloads-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #edff66;
+            text-decoration: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .downloads-link:hover {
+            text-decoration: underline;
+        }
+
+        @keyframes animate-gradient {
+            to {
+                background-position: 200%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .games-hero h1 {
+                font-size: 50px;
+            }
+
+            .games-hero p {
+                font-size: 18px;
+            }
+
+            .games-grid {
+                grid-template-columns: 1fr;
+                padding: 30px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="head-left">
+                <img src="img/logo.png" alt="logo">
+                <button><a href="features.html" style="text-decoration: none; color: black;">Products</a></button>
+            </div>
+
+            <div class="head-right">
+                <p><a href="index.html">HOME</a></p>
+                <p><a href="features.html">FEATURES</a></p>
+                <p><a href="features.html#about">ABOUT</a></p>
+                <p><a href="#">GAMES</a></p>
+                <p><a href="features.html#contact">CONTACT</a></p>
+                <p><a href="login.html" onclick="logout(event)">LOGOUT</a></p>
+            </div>
+        </header>
+
+        <div class="games-hero">
+            <div>
+                <h1>GAMES</h1>
+                <p>Discover amazing games on our platform - Play, Earn, and Have Fun!</p>
+            </div>
+        </div>
+
+        <div class="games-grid">
+            <!-- Game 1: Fortnite -->
+            <div class="game-card">
+                <div class="game-card-header">
+                    <h2>Fortnite</h2>
+                    <span class="game-genre">Battle Royale</span>
+                </div>
+                <div class="game-card-body">
+                    <div class="game-rating">
+                        <span class="stars">★★★★★</span>
+                        <span class="rating-text">4.8/5 (2.1M reviews)</span>
+                    </div>
+                    <p class="game-description">Experience the ultimate battle royale. Drop into a vibrant world, build structures, and eliminate opponents. Available on all major platforms.</p>
+                    <div class="game-stats">
+                        <div class="stat">
+                            <span class="stat-label">Players Online</span>
+                            <span class="stat-value">15.2M</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Max Players/Match</span>
+                            <span class="stat-value">100</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="platform-badge">PC</span>
+                        <span class="platform-badge">PS5</span>
+                        <span class="platform-badge">Xbox</span>
+                        <span class="platform-badge">Mobile</span>
+                    </div>
+                    <button class="play-btn" id="btn-fortnite" onclick="downloadGame('Fortnite', 'fortnite-installer.exe', '85.4')">⬇️ Download</button>
+                </div>
+            </div>
+
+            <!-- Game 2: Valorant -->
+            <div class="game-card">
+                <div class="game-card-header">
+                    <h2>Valorant</h2>
+                    <span class="game-genre">Tactical Shooter</span>
+                </div>
+                <div class="game-card-body">
+                    <div class="game-rating">
+                        <span class="stars">★★★★★</span>
+                        <span class="rating-text">4.7/5 (890K reviews)</span>
+                    </div>
+                    <p class="game-description">A 5v5 character-based tactical shooter by Riot Games. Master unique agents with special abilities and dominate competitive matches.</p>
+                    <div class="game-stats">
+                        <div class="stat">
+                            <span class="stat-label">Players Online</span>
+                            <span class="stat-value">8.5M</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Max Players/Match</span>
+                            <span class="stat-value">10</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="platform-badge">PC</span>
+                        <span class="platform-badge">Coming Soon: Mobile</span>
+                    </div>
+                    <button class="play-btn" id="btn-valorant" onclick="downloadGame('Valorant', 'valorant-installer.exe', '61.2')">⬇️ Download</button>
+                </div>
+            </div>
+
+            <!-- Game 3: Elden Ring -->
+            <div class="game-card">
+                <div class="game-card-header">
+                    <h2>Elden Ring</h2>
+                    <span class="game-genre">Action RPG</span>
+                </div>
+                <div class="game-card-body">
+                    <div class="game-rating">
+                        <span class="stars">★★★★★</span>
+                        <span class="rating-text">4.9/5 (1.5M reviews)</span>
+                    </div>
+                    <p class="game-description">Crafted in collaboration with George R. R. Martin, explore a vast open world filled with mystery and danger. A masterpiece of game design.</p>
+                    <div class="game-stats">
+                        <div class="stat">
+                            <span class="stat-label">Avg Playtime</span>
+                            <span class="stat-value">80+ Hours</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Trophies/Achievements</span>
+                            <span class="stat-value">40+</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="platform-badge">PC</span>
+                        <span class="platform-badge">PS5</span>
+                        <span class="platform-badge">Xbox Series X</span>
+                    </div>
+                    <button class="play-btn" id="btn-elden-ring" onclick="downloadGame('Elden Ring', 'elden-ring-installer.exe', '120.5')">⬇️ Download</button>
+                </div>
+            </div>
+
+            <!-- Game 4: League of Legends -->
+            <div class="game-card">
+                <div class="game-card-header">
+                    <h2>League of Legends</h2>
+                    <span class="game-genre">MOBA</span>
+                </div>
+                <div class="game-card-body">
+                    <div class="game-rating">
+                        <span class="stars">★★★★☆</span>
+                        <span class="rating-text">4.5/5 (3.2M reviews)</span>
+                    </div>
+                    <p class="game-description">The most played MOBA in the world. Choose from 160+ champions and lead your team to victory in 5v5 strategic battles.</p>
+                    <div class="game-stats">
+                        <div class="stat">
+                            <span class="stat-label">Players Online</span>
+                            <span class="stat-value">20M+</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Champions</span>
+                            <span class="stat-value">160+</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="platform-badge">PC</span>
+                        <span class="platform-badge">Mobile (Wild Rift)</span>
+                    </div>
+                    <button class="play-btn" id="btn-league-of-legends" onclick="downloadGame('League of Legends', 'lol-installer.exe', '32.8')">⬇️ Download</button>
+                </div>
+            </div>
+
+            <!-- Game 5: PUBG Mobile -->
+            <div class="game-card">
+                <div class="game-card-header">
+                    <h2>PUBG Mobile</h2>
+                    <span class="game-genre">Battle Royale</span>
+                </div>
+                <div class="game-card-body">
+                    <div class="game-rating">
+                        <span class="stars">★★★★☆</span>
+                        <span class="rating-text">4.6/5 (5.8M reviews)</span>
+                    </div>
+                    <p class="game-description">The legendary battle royale adapted for mobile. Drop into intense 100-player matches and become the last one standing.</p>
+                    <div class="game-stats">
+                        <div class="stat">
+                            <span class="stat-label">Players Online</span>
+                            <span class="stat-value">30M+</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Max Players/Match</span>
+                            <span class="stat-value">100</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="platform-badge">iOS</span>
+                        <span class="platform-badge">Android</span>
+                        <span class="platform-badge">PC</span>
+                    </div>
+                    <button class="play-btn" id="btn-pubg-mobile" onclick="downloadGame('PUBG Mobile', 'pubg-mobile-app.apk', '2.4')">⬇️ Download</button>
+                </div>
+            </div>
+
+            <!-- Game 6: Apex Legends -->
+            <div class="game-card">
+                <div class="game-card-header">
+                    <h2>Apex Legends</h2>
+                    <span class="game-genre">Battle Royale</span>
+                </div>
+                <div class="game-card-body">
+                    <div class="game-rating">
+                        <span class="stars">★★★★★</span>
+                        <span class="rating-text">4.7/5 (1.2M reviews)</span>
+                    </div>
+                    <p class="game-description">Squad-based battle royale shooter by Respawn Entertainment. Choose your legend, customize loadouts, and compete in fast-paced matches.</p>
+                    <div class="game-stats">
+                        <div class="stat">
+                            <span class="stat-label">Players Online</span>
+                            <span class="stat-value">12M+</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Legends</span>
+                            <span class="stat-value">24</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="platform-badge">PC</span>
+                        <span class="platform-badge">PS5</span>
+                        <span class="platform-badge">Xbox</span>
+                        <span class="platform-badge">Mobile</span>
+                    </div>
+                    <button class="play-btn" id="btn-apex-legends" onclick="downloadGame('Apex Legends', 'apex-legends-installer.exe', '78.6')">⬇️ Download</button>
+                </div>
+            </div>
+        </div>
+
+        <section class="footer">
+            <p>©SHAKES 2025. All rights reserved</p>
+            <ul>
+                <li><a href="#"><i class='bx bxl-youtube'></i> </a></li>
+                <li><a href="#"><i class='bx bxl-google'></i> </a></li>
+                <li><a href="#"><i class='bx bxl-github'></i> </a></li>
+                <li><a href="#"><i class='bx bxl-twitter'></i> </a></li>
+            </ul>
+            <p>Privacy Policy</p>
+        </section>
+    </div>
+
+    <!-- Download Modal -->
+    <div id="downloadModal" class="download-modal">
+        <div class="modal-content">
+            <h2 id="modalGameName">Game Name</h2>
+            <p>Downloading your game...</p>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill">0%</div>
+            </div>
+
+            <div class="download-stats">
+                <div class="stat-item">
+                    <label>Downloaded</label>
+                    <value id="downloadedSize">0 MB</value>
+                </div>
+                <div class="stat-item">
+                    <label>Speed</label>
+                    <value id="downloadSpeed">0 MB/s</value>
+                </div>
+                <div class="stat-item">
+                    <label>Time Left</label>
+                    <value id="timeLeft">Calculating...</value>
+                </div>
+                <div class="stat-item">
+                    <label>Total Size</label>
+                    <value id="totalSize">0 MB</value>
+                </div>
+            </div>
+
+            <button id="modalAction" class="close-btn">Cancel Download</button>
+            <div style="margin-top: 15px;">
+                <a href="#" onclick="viewDownloads()" class="downloads-link">📥 View My Downloads</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Check authentication on page load
+        window.addEventListener('load', function() {
+            if (!DataManager.isLoggedIn()) {
+                window.location.href = 'login.html?redirect=games.html';
+            }
+            
+            const session = DataManager.getSession();
+            console.log('Welcome back:', session.userName);
+        });
+
+        let downloadInProgress = false;
+        let downloads = JSON.parse(localStorage.getItem('gameDownloads') || '{}');
+
+        // Game Links Mapping
+        const gameLinks = {
+            'Fortnite': 'https://www.fortnite.com/download',
+            'Valorant': 'https://valorant.com/download',
+            'Elden Ring': 'https://www.eldenring.com/',
+            'League of Legends': 'https://signup.leagueoflegends.com/',
+            'PUBG Mobile': 'https://www.pubgmobile.com/',
+            'Apex Legends': 'https://www.ea.com/games/apex/apex-legends/play-now'
+        };
+
+        // Logout function
+        function logout(event) {
+            event.preventDefault();
+            DataManager.clearSession();
+            window.location.href = 'login.html';
+        }
+
+        // Download Game - Redirect to real game site
+        function downloadGame(gameName, filename, fileSize) {
+            if (!DataManager.isLoggedIn()) {
+                alert('Please login to download games');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Record download intent
+            const downloadInfo = {
+                name: gameName,
+                filename: filename,
+                fileSize: fileSize,
+                downloadedAt: new Date().toLocaleString(),
+                completed: true,
+                user: localStorage.getItem('currentUser')
+            };
+
+            downloads[gameName] = downloadInfo;
+            localStorage.setItem('gameDownloads', JSON.stringify(downloads));
+            DataManager.saveDownload(gameName, downloadInfo);
+
+            // Show notification
+            showNotification('✓ ' + gameName + ' marked for download!', 'success');
+
+            // Get game URL
+            const gameUrl = gameLinks[gameName] || 'https://www.google.com/search?q=' + encodeURIComponent(gameName + ' download');
+
+            // Update button immediately
+            setTimeout(() => {
+                updateGameButtons();
+            }, 500);
+
+            // Redirect to real game site after 2 seconds
+            setTimeout(() => {
+                showNotification('🎮 Opening ' + gameName + ' official site...', 'success');
+                window.open(gameUrl, '_blank');
+            }, 2000);
+        }
+
+        // Play Game - Redirect to real game site
+        function playGame(gameName) {
+            if (!DataManager.isLoggedIn()) {
+                alert('Please login to play games');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const downloads = JSON.parse(localStorage.getItem('gameDownloads') || '{}');
+            
+            if (!downloads[gameName]) {
+                alert('Please download ' + gameName + ' first!');
+                return;
+            }
+
+            // Record game play session
+            let gameSessions = JSON.parse(localStorage.getItem('gameSessions') || '[]');
+            gameSessions.push({
+                game: gameName,
+                playedAt: new Date().toISOString(),
+                user: localStorage.getItem('currentUser')
+            });
+            localStorage.setItem('gameSessions', JSON.stringify(gameSessions));
+
+            // Show notification
+            showNotification('🎮 Launching ' + gameName + '...', 'success');
+
+            // Get game URL
+            const gameUrl = gameLinks[gameName] || 'https://www.google.com/search?q=' + encodeURIComponent(gameName);
+
+            // Redirect to real game site
+            setTimeout(() => {
+                window.open(gameUrl, '_blank');
+            }, 1000);
+        }
+
+        function viewDownloads() {
+            const downloads = JSON.parse(localStorage.getItem('gameDownloads') || '{}');
+            
+            if (Object.keys(downloads).length === 0) {
+                alert('No downloads yet. Start downloading a game!');
+                return;
+            }
+
+            let downloadList = 'Your Downloads:\n\n';
+            for (const [gameName, info] of Object.entries(downloads)) {
+                downloadList += `${gameName}\n  File: ${info.filename}\n  Size: ${info.fileSize} MB\n  Downloaded: ${info.downloadedAt}\n\n`;
+            }
+
+            alert(downloadList);
+        }
+
+        // Check downloaded games on page load and update buttons
+        function updateGameButtons() {
+            const downloads = JSON.parse(localStorage.getItem('gameDownloads') || '{}');
+            const games = ['Fortnite', 'Valorant', 'Elden Ring', 'League of Legends', 'PUBG Mobile', 'Apex Legends'];
+            
+            games.forEach(gameName => {
+                const btn = document.getElementById('btn-' + gameName.toLowerCase().replace(/\s+/g, '-'));
+                if (btn) {
+                    if (downloads[gameName]) {
+                        // Game is downloaded - show play button
+                        btn.innerHTML = '▶️ Play Now';
+                        btn.style.backgroundColor = '#edff66';
+                        btn.style.color = '#000000';
+                        btn.onclick = function() { playGame(gameName); };
+                    } else {
+                        // Game not downloaded - show download button
+                        btn.innerHTML = '⬇️ Download';
+                        btn.style.backgroundColor = '';
+                        btn.style.color = '';
+                        btn.onclick = function() {
+                            const fileSizes = {
+                                'Fortnite': '85.4',
+                                'Valorant': '61.2',
+                                'Elden Ring': '120.5',
+                                'League of Legends': '32.8',
+                                'PUBG Mobile': '2.4',
+                                'Apex Legends': '78.6'
+                            };
+                            const fileNames = {
+                                'Fortnite': 'fortnite-installer.exe',
+                                'Valorant': 'valorant-installer.exe',
+                                'Elden Ring': 'elden-ring-installer.exe',
+                                'League of Legends': 'lol-installer.exe',
+                                'PUBG Mobile': 'pubg-mobile-installer.apk',
+                                'Apex Legends': 'apex-legends-installer.exe'
+                            };
+                            downloadGame(gameName, fileNames[gameName], fileSizes[gameName]);
+                        };
+                    }
+                }
+            });
+        }
+
+        window.addEventListener('load', function() {
+            updateGameButtons();
+            const downloadCount = Object.keys(JSON.parse(localStorage.getItem('gameDownloads') || '{}')).length;
+            if (downloadCount > 0) {
+                console.log(`You have ${downloadCount} downloaded game(s)`);
+            }
+        });
+    </script>
