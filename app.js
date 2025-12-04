@@ -29,6 +29,19 @@ const DataManager = {
         localStorage.setItem('currentUser', email);
         localStorage.setItem('currentUserName', userName);
         localStorage.setItem('sessionStart', new Date().toISOString());
+        // Add to active sessions
+        try {
+            let sessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
+            sessions[email] = {
+                email: email,
+                userName: userName,
+                sessionStart: new Date().toISOString(),
+                lastActive: new Date().toISOString()
+            };
+            localStorage.setItem('activeSessions', JSON.stringify(sessions));
+        } catch (e) {
+            console.warn('Failed to save active session', e);
+        }
         return true;
     },
 
@@ -44,6 +57,17 @@ const DataManager = {
         localStorage.removeItem('currentUser');
         localStorage.removeItem('currentUserName');
         localStorage.removeItem('sessionStart');
+        // Remove from active sessions
+        try {
+            const email = localStorage.getItem('currentUser');
+            let sessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
+            if (email && sessions[email]) {
+                delete sessions[email];
+                localStorage.setItem('activeSessions', JSON.stringify(sessions));
+            }
+        } catch (e) {
+            console.warn('Failed to remove active session', e);
+        }
         return true;
     },
 
@@ -87,6 +111,58 @@ const DataManager = {
         return JSON.parse(localStorage.getItem('contactMessages') || '[]');
     }
 };
+
+// Session helpers
+DataManager.getActiveSessions = function() {
+    return JSON.parse(localStorage.getItem('activeSessions') || '{}');
+};
+
+DataManager.getActiveSessionCount = function() {
+    return Object.keys(this.getActiveSessions()).length;
+};
+
+DataManager.touchSession = function(email) {
+    try {
+        let sessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
+        if (sessions[email]) {
+            sessions[email].lastActive = new Date().toISOString();
+            localStorage.setItem('activeSessions', JSON.stringify(sessions));
+            return true;
+        }
+    } catch (e) { console.warn(e); }
+    return false;
+};
+
+// Notifications
+DataManager.addNotification = function(message, type = 'info') {
+    try {
+        let notes = JSON.parse(localStorage.getItem('notifications') || '[]');
+        const note = {
+            id: 'n_' + Date.now(),
+            message: message,
+            type: type,
+            createdAt: new Date().toISOString(),
+            read: false
+        };
+        notes.unshift(note);
+        localStorage.setItem('notifications', JSON.stringify(notes));
+        return note;
+    } catch (e) { console.warn('addNotification failed', e); return null; }
+};
+
+DataManager.getNotifications = function() {
+    return JSON.parse(localStorage.getItem('notifications') || '[]');
+};
+
+DataManager.markNotificationRead = function(id) {
+    try {
+        let notes = JSON.parse(localStorage.getItem('notifications') || '[]');
+        notes = notes.map(n => n.id === id ? {...n, read: true} : n);
+        localStorage.setItem('notifications', JSON.stringify(notes));
+        return true;
+    } catch (e) { console.warn(e); return false; }
+};
+
 
 // ==================
 // Auto-Login Check
@@ -161,27 +237,36 @@ function validatePassword(password) {
 
 function showNotification(message, type = 'success') {
     // Create notification element
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 15px 25px;
-        background-color: ${type === 'success' ? '#4caf50' : '#f44336'};
-        color: white;
-        border-radius: 8px;
-        z-index: 10000;
-        font-weight: bold;
-        animation: slideIn 0.3s ease-in-out;
-    `;
-    notification.textContent = message;
-    document.body.appendChild(notification);
+    // Persist notification
+    try { DataManager.addNotification(message, type); } catch (e) {}
 
-    // Remove after 3 seconds
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease-in-out';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    // Create or reuse notification area
+    let area = document.getElementById('notification-area');
+    if (!area) {
+        area = document.createElement('div');
+        area.id = 'notification-area';
+        area.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index:10000; display:flex; flex-direction:column; gap:10px; max-width:320px;';
+        document.body.appendChild(area);
+    }
+
+    const el = document.createElement('div');
+    el.style.cssText = `padding:12px 16px; border-radius:8px; color:white; font-weight:700; box-shadow:0 6px 18px rgba(0,0,0,0.4);`;
+    el.textContent = message;
+    if (type === 'success') el.style.backgroundColor = '#4caf50';
+    else if (type === 'error') el.style.backgroundColor = '#f44336';
+    else el.style.backgroundColor = '#333';
+
+    // Add dismiss button
+    const dismiss = document.createElement('button');
+    dismiss.textContent = '✕';
+    dismiss.style.cssText = 'margin-left:10px;background:transparent;border:none;color:white;font-weight:700;cursor:pointer;float:right';
+    dismiss.onclick = () => el.remove();
+    el.appendChild(dismiss);
+
+    area.prepend(el);
+
+    // Auto-remove after 6s (unless admin wants to keep)
+    setTimeout(() => el.remove(), 6000);
 }
 
 // Add animation styles
