@@ -387,6 +387,23 @@
                 </div>
 
                 <div class="card">
+                    <h3>Upload Track From Device (commits to repo)</h3>
+                    <p style="color:gray;">Select an MP3/OGG file and provide a temporary GitHub Personal Access Token with `repo` scope to upload into the repository's <code>audio/</code> folder. Files >100MB may fail.</p>
+                    <div class="form-group">
+                        <label for="music-file">Select File</label>
+                        <input id="music-file" type="file" accept="audio/mpeg,audio/ogg" />
+                    </div>
+                    <div class="form-group">
+                        <label for="gh-token">GitHub Token (temporary)</label>
+                        <input id="gh-token" placeholder="ghp_xxx..." />
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <button class="submit-btn" onclick="uploadMusicFile()">Upload & Add</button>
+                        <button class="submit-btn" onclick="clearGhToken()" style="background:#ff6b6b">Clear Token</button>
+                    </div>
+                </div>
+
+                <div class="card">
                     <h3>Current Tracks</h3>
                     <table id="music-table">
                         <thead>
@@ -564,6 +581,85 @@
                 }
                 renderMusicList();
             } catch (e) { console.warn(e); }
+        }
+
+        // Clear token input for security
+        function clearGhToken() {
+            const t = document.getElementById('gh-token');
+            if (t) t.value = '';
+            alert('GitHub token cleared from this page');
+        }
+
+        // Upload file to GitHub repo and register as site music
+        async function uploadMusicFile() {
+            const fileInput = document.getElementById('music-file');
+            const tokenInput = document.getElementById('gh-token');
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) return alert('Select a file first');
+            const file = fileInput.files[0];
+            const allowed = ['audio/mpeg','audio/ogg','audio/wav'];
+            if (!allowed.includes(file.type) && !file.name.match(/\.(mp3|ogg|wav)$/i)) return alert('Only mp3/ogg/wav files allowed');
+            const token = tokenInput && tokenInput.value.trim();
+            if (!token) return alert('Provide a temporary GitHub token with repo scope');
+
+            const confirmMsg = `Upload ${file.name} to repository under audio/ and add to site music?`;
+            if (!confirm(confirmMsg)) return;
+
+            try {
+                // Read file as base64
+                const b64 = await new Promise((res, rej) => {
+                    const r = new FileReader();
+                    r.onload = () => res(r.result.split(',')[1]);
+                    r.onerror = rej;
+                    r.readAsDataURL(file);
+                });
+
+                const owner = 'SHAKEs6';
+                const repo = 'sym40n-gaming';
+                const path = `audio/${file.name.replace(/[^a-zA-Z0-9.\-_]/g,'_')}`;
+                const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`;
+
+                const body = {
+                    message: `Add audio ${file.name}`,
+                    content: b64,
+                    branch: 'main'
+                };
+
+                const resp = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'token ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                const result = await resp.json();
+                if (!resp.ok) {
+                    console.error(result);
+                    return alert('Upload failed: ' + (result.message || resp.statusText));
+                }
+
+                // Construct raw URL for public access
+                const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${path}`;
+
+                // Add to site music list
+                const title = file.name.replace(/\.(mp3|ogg|wav)$/i,'');
+                if (window.DataManager && DataManager.addMusic) {
+                    DataManager.addMusic(title, rawUrl);
+                } else {
+                    let mus = JSON.parse(localStorage.getItem('siteMusic') || '[]');
+                    mus.push({ id: 'm_' + Date.now(), title, url: rawUrl, addedAt: new Date().toISOString() });
+                    localStorage.setItem('siteMusic', JSON.stringify(mus));
+                }
+
+                renderMusicList();
+                alert('Uploaded and added to playlist: ' + rawUrl);
+                // clear file input (security)
+                fileInput.value = '';
+            } catch (err) {
+                console.error(err);
+                alert('Upload failed: ' + err.message);
+            }
         }
 
         // Update statistics
