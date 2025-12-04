@@ -109,6 +109,43 @@ document.addEventListener('DOMContentLoaded', function() {
     localStorage.setItem('pageVisits', JSON.stringify(visits));
 });
 
+// Hero video carousel: cycles through local videos when the NEXT button is clicked
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const videoEl = document.querySelector('.hero-video');
+        const nextBtn = document.querySelector('.next-btn');
+        if (!videoEl || !nextBtn) return;
+
+        const movieList = [
+            'videos/hero-1.mp4',
+            'videos/hero-2.mp4',
+            'videos/hero-3.mp4',
+            'videos/hero-4.mp4'
+        ];
+
+        const sourceEl = videoEl.querySelector('source');
+        const currentSrc = (sourceEl && sourceEl.getAttribute('src')) || videoEl.currentSrc || '';
+        const currentFile = currentSrc.split('/').pop();
+        let index = movieList.findIndex(m => m.endsWith(currentFile));
+        if (index === -1) index = 0;
+
+        nextBtn.addEventListener('click', function () {
+            index = (index + 1) % movieList.length;
+            if (sourceEl) {
+                sourceEl.setAttribute('src', movieList[index]);
+            } else {
+                // fallback: replace video src directly
+                videoEl.setAttribute('src', movieList[index]);
+            }
+            // reload video element and attempt play
+            try { videoEl.load(); } catch (e) {}
+            videoEl.play && videoEl.play().catch(() => {});
+        });
+    } catch (err) {
+        console.warn('Hero carousel initialization failed', err);
+    }
+});
+
 // ==================
 // Utility Functions
 // ==================
