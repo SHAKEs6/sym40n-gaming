@@ -148,16 +148,7 @@
                 socket.on('config', cfg => {
                     console.log('received config:', cfg);
                     if (cfg && cfg.decoration) applyDecoration(cfg.decoration);
-                    if (cfg && cfg.currentMusic) {
-                        console.log('current music from config:', cfg.currentMusic);
-                        // Auto-play music if audio is unlocked
-                        if (audioUnlocked) {
-                            playMusic(`/music/${cfg.currentMusic}`);
-                        } else {
-                            // queue it to play when unlocked
-                            pendingMusicUrl = `/music/${cfg.currentMusic}`;
-                        }
-                    }
+                    if (cfg && cfg.currentMusic) console.log('current music from config:', cfg.currentMusic);
                 });
 
                 socket.on('decoration', dec => {

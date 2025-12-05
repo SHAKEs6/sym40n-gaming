@@ -49,20 +49,6 @@ function saveConfig() {
   try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2)); } catch (err) { console.error('Failed to save config', err); }
 }
 
-// Auto-play first music file on startup if none is set
-function initializeMusic() {
-  if (config.currentMusic) return; // already set
-  try {
-    const files = fs.readdirSync(MUSIC_DIR).filter(f => /\.(mp3|ogg|wav|m4a)$/i.test(f)).sort();
-    if (files.length > 0) {
-      config.currentMusic = files[0];
-      saveConfig();
-      console.log(`Auto-playing music: ${files[0]}`);
-    }
-  } catch (err) { console.error('Failed to auto-play music:', err); }
-}
-initializeMusic();
-
 // sessions
 app.use(session({
   secret: process.env.SESSION_SECRET || 'change-this-secret',
@@ -135,6 +121,15 @@ app.post('/auth/logout', (req, res) => {
 
 app.get('/vapidPublicKey', (req, res) => {
   return res.json({ publicKey: config.vapidKeys.publicKey });
+});
+
+app.get('/api/music-files', (req, res) => {
+  try {
+    const files = fs.readdirSync(MUSIC_DIR).filter(f => /\.(mp3|ogg|wav|m4a)$/i.test(f));
+    return res.json({ files });
+  } catch (e) {
+    return res.json({ files: [] });
+  }
 });
 
 app.post('/subscribe', async (req, res) => {

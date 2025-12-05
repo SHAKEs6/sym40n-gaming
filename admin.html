@@ -160,21 +160,43 @@
 
     async function loadMusicFiles() {
       try {
-        const res = await fetch('/music/', { credentials: 'include' });
-        const html = await res.text();
+        // Fetch music files from backend API
+        const res = await fetch('/api/music-files');
+        const data = await res.json();
+        const musicFiles = data.files || [];
+        
         const select = document.getElementById('musicSelect');
-        const files = html.match(/href="([^"]+\.(?:mp3|ogg|wav|m4a))"/gi) || [];
         select.innerHTML = '<option value="">Select a file</option>';
-        if (files.length === 0) {
+        
+        if (musicFiles.length === 0) {
           select.innerHTML += '<option disabled>No music files found</option>';
         } else {
-          files.forEach(f => {
-            const name = f.match(/href="([^"]+)"/)[1];
-            select.innerHTML += `<option value="/music/${name}">${name}</option>`;
+          musicFiles.forEach(file => {
+            const option = document.createElement('option');
+            option.value = '/music/' + file;
+            option.textContent = file;
+            select.appendChild(option);
           });
         }
       } catch (e) {
-        console.log('Auto-load music files requires directory listing');
+        console.error('Error loading music files:', e);
+        // Fallback to hardcoded list
+        const musicFiles = [
+          'polo.mp3', 'polo1.mp3', 'polo2.mp3', 'polo3.mp3', 'polo4.mp3',
+          'polo5.mp3', 'polo6.mp3', 'polo7.mp3', 'polo8.mp3', 'polo9.mp3',
+          'polo10.mp3', 'polo11.mp3', 'polo12.mp3', 'polo13.mp3', 'polo14.mp3',
+          'polo15.mp3', 'polo16.mp3', 'polo17.mp3', 'polo18.mp3', 'polo19.mp3',
+          'polo20.mp3'
+        ];
+        
+        const select = document.getElementById('musicSelect');
+        select.innerHTML = '<option value="">Select a file</option>';
+        musicFiles.forEach(file => {
+          const option = document.createElement('option');
+          option.value = '/music/' + file;
+          option.textContent = file;
+          select.appendChild(option);
+        });
       }
     }
 
@@ -243,6 +265,14 @@
         loginBox.style.display = 'none';
         adminPanel.style.display = 'block';
         loadMusicFiles();
+        // Auto-play first song on load
+        setTimeout(() => {
+          const select = document.getElementById('musicSelect');
+          if (select.options.length > 1) {
+            select.selectedIndex = 1; // Select first music file
+            playSelectedMusic();
+          }
+        }, 500);
       }
     })();
   </script>
