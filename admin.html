@@ -564,7 +564,7 @@
             body.innerHTML = '';
             mus.forEach(t => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${t.title}</td><td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;">${t.url}</td><td><button class="submit-btn" onclick="removeMusic('${t.id}')">Remove</button></td>`;
+                tr.innerHTML = `<td>${t.title}</td><td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;">${t.url}</td><td style="display:flex;gap:8px;"><button class="submit-btn" onclick="removeMusic('${t.id}')">Remove</button><button class="submit-btn" onclick="broadcastMusic('${t.id}')">Broadcast</button></td>`;
                 body.appendChild(tr);
             });
         }
@@ -659,6 +659,54 @@
             } catch (err) {
                 console.error(err);
                 alert('Upload failed: ' + err.message);
+            }
+        }
+
+        // Broadcast a track to all clients by writing site_state/now_playing.json to repo
+        async function broadcastMusic(id) {
+            const mus = JSON.parse(localStorage.getItem('siteMusic') || '[]');
+            const track = mus.find(m => m.id === id);
+            if (!track) return alert('Track not found');
+
+            const token = document.getElementById('gh-token') && document.getElementById('gh-token').value.trim();
+            if (!token) return alert('Provide GitHub token to broadcast (temporary)');
+
+            const owner = 'SHAKEs6';
+            const repo = 'sym40n-gaming';
+            const path = 'site_state/now_playing.json';
+            const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`;
+
+            const payload = {
+                trackUrl: track.url,
+                title: track.title,
+                action: 'play',
+                ts: new Date().toISOString()
+            };
+
+            try {
+                const body = { message: `Broadcast track ${track.title}`, content: btoa(JSON.stringify(payload)), branch: 'main' };
+                // Try to get existing file to update (need sha)
+                const getResp = await fetch(url + '?ref=main');
+                let sha = null;
+                if (getResp.ok) {
+                    const json = await getResp.json();
+                    sha = json.sha;
+                }
+
+                if (sha) body.sha = sha;
+
+                const resp = await fetch(url, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const resj = await resp.json();
+                if (!resp.ok) return alert('Broadcast failed: ' + (resj.message || resp.statusText));
+
+                alert('Broadcast sent — clients will pick it up shortly.');
+            } catch (e) {
+                console.error(e);
+                alert('Broadcast failed: ' + e.message);
             }
         }
 

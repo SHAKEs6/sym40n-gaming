@@ -303,6 +303,63 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch (e) { console.warn('music player init failed', e); }
 });
 
+// Poll repo-hosted now_playing.json for broadcast commands (approximate sync)
+(function setupBroadcastPoll() {
+    const rawUrl = 'https://raw.githubusercontent.com/SHAKEs6/sym40n-gaming/main/site_state/now_playing.json';
+    let lastTs = null;
+
+    async function poll() {
+        try {
+            const r = await fetch(rawUrl + '?_=' + Date.now(), { cache: 'no-store' });
+            if (!r.ok) return; // no broadcast file yet
+            const text = await r.text();
+            if (!text) return;
+            let payload;
+            try { payload = JSON.parse(text); } catch (e) {
+                // if file is base64 content (raw returns JSON for created file), try decode
+                try {
+                    const meta = JSON.parse(text);
+                    if (meta && meta.content) {
+                        payload = JSON.parse(atob(meta.content));
+                    }
+                } catch (er) { return; }
+            }
+            if (!payload || !payload.ts) return;
+            if (payload.ts === lastTs) return; // no change
+            lastTs = payload.ts;
+
+            // Handle actions: play / pause / stop
+            const audio = document.getElementById('site-audio');
+            if (!audio) return;
+
+            if (payload.action === 'play') {
+                // if different track, load it
+                if (audio.src !== payload.trackUrl) {
+                    audio.src = payload.trackUrl;
+                    const titleEl = document.getElementById('music-title');
+                    if (titleEl) titleEl.textContent = payload.title || payload.trackUrl.split('/').pop();
+                }
+                // attempt to play; browsers may block autoplay without gesture
+                audio.play().catch(() => {
+                    // show a small notice prompting user to click play
+                    showNotification('Click to enable audio playback', 'info');
+                });
+            } else if (payload.action === 'pause') {
+                try { audio.pause(); } catch (e) {}
+            } else if (payload.action === 'stop') {
+                try { audio.pause(); audio.currentTime = 0; } catch (e) {}
+            }
+        } catch (e) {
+            // ignore polling errors
+        } finally {
+            setTimeout(poll, 5000);
+        }
+    }
+
+    // start polling
+    setTimeout(poll, 2000);
+})();
+
 
 // ==================
 // Auto-Login Check
