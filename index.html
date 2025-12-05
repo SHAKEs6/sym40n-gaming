@@ -146,13 +146,23 @@
                 });
 
                 socket.on('config', cfg => {
+                    console.log('received config:', cfg);
                     if (cfg && cfg.decoration) applyDecoration(cfg.decoration);
-                    if (cfg && cfg.currentMusic) console.log('current music', cfg.currentMusic);
+                    if (cfg && cfg.currentMusic) console.log('current music from config:', cfg.currentMusic);
                 });
 
-                socket.on('decoration', dec => applyDecoration(dec));
-                socket.on('notification', payload => showNotification(payload));
-                socket.on('play-music', data => { if (data && data.url) playMusic(data.url); });
+                socket.on('decoration', dec => {
+                    console.log('decoration event:', dec);
+                    applyDecoration(dec);
+                });
+                socket.on('notification', payload => {
+                    console.log('notification event:', payload);
+                    showNotification(payload);
+                });
+                socket.on('play-music', data => {
+                    console.log('play-music event received:', data);
+                    if (data && data.url) playMusic(data.url);
+                });
 
                 function applyDecoration(decoration){
                     if (!decoration){ document.body.classList.remove('seasonal-on'); document.body.removeAttribute('data-decoration'); return; }
@@ -177,6 +187,8 @@
 
                 function playMusic(url){
                     try{
+                        console.log('playMusic called with url:', url, 'audioUnlocked:', audioUnlocked);
+                        
                         if (!audioUnlocked){
                             // queue and prompt user to enable sound
                             pendingMusicUrl = url;
@@ -192,28 +204,23 @@
                             return;
                         }
 
-                        // load music via Cincopa hidden player
-                        const player = document.getElementById('cincopa_player');
-                        if (!player) return;
-                        
-                        // extract media ID from URL (if it's a direct Cincopa gallery)
-                        // For now, create a hidden iframe player that auto-plays
-                        player.innerHTML = '';
-                        const iframe = document.createElement('iframe');
-                        iframe.src = url;
-                        iframe.style.display = 'none';
-                        iframe.allow = 'autoplay';
-                        player.appendChild(iframe);
-                        
-                        // also create an audio element for simpler playback
+                        // stop any existing audio
                         if (currentAudio){ currentAudio.pause(); currentAudio = null; }
+                        
+                        // create and play audio element
                         currentAudio = new Audio(url);
                         currentAudio.crossOrigin = 'anonymous';
                         currentAudio.autoplay = true;
                         currentAudio.loop = true;
                         currentAudio.volume = 0.4;
-                        currentAudio.play().catch(e=> console.warn('autoplay blocked', e));
-                    } catch(e){ console.error(e); }
+                        console.log('Audio element created, attempting to play:', url);
+                        currentAudio.play().then(()=> {
+                            console.log('Music playing successfully');
+                        }).catch(e=> {
+                            console.warn('Playback failed:', e);
+                            showNotification({ title: 'Music Error', message: 'Could not play music' });
+                        });
+                    } catch(e){ console.error('playMusic error:', e); }
                 }
 
                 function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

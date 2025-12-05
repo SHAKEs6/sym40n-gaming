@@ -176,6 +176,7 @@ app.post('/admin/play-music', ensureAdmin, (req, res) => {
   config.currentMusic = filename;
   saveConfig();
   const url = `/music/${filename}`;
+  console.log(`Broadcasting play-music event with url: ${url}`);
   io.emit('play-music', { url, filename });
   return res.json({ ok: true, url });
 });
