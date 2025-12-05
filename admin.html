@@ -433,6 +433,13 @@
                             <textarea id="site-description" placeholder="Enter site description">Web3 Gaming Platform</textarea>
                         </div>
                         <div class="form-group">
+                            <label for="social-youtube">Social Links</label>
+                            <input id="social-youtube" placeholder="YouTube URL (optional)" />
+                            <input id="social-google" placeholder="Google/Website URL (optional)" style="margin-top:8px;" />
+                            <input id="social-github" placeholder="GitHub URL (optional)" style="margin-top:8px;" />
+                            <input id="social-twitter" placeholder="Twitter URL (optional)" style="margin-top:8px;" />
+                        </div>
+                        <div class="form-group">
                             <label for="seasonal-decor">Seasonal Decorations</label>
                             <div style="display:flex;gap:8px;align-items:center;">
                                 <input type="checkbox" id="seasonal-decor" />
@@ -702,6 +709,17 @@
             // notify other tabs
             try { localStorage.setItem('seasonalDecor-ts', Date.now()); } catch(e){}
 
+            // Save social links
+            try {
+                const social = {
+                    youtube: document.getElementById('social-youtube').value.trim(),
+                    google: document.getElementById('social-google').value.trim(),
+                    github: document.getElementById('social-github').value.trim(),
+                    twitter: document.getElementById('social-twitter').value.trim()
+                };
+                localStorage.setItem('socialLinks', JSON.stringify(social));
+            } catch (e) { console.warn('save social links', e); }
+
             alert('Settings saved successfully!');
         }
 
@@ -711,6 +729,17 @@
                 const seasonal = localStorage.getItem('seasonalDecor') === '1';
                 const cb = document.getElementById('seasonal-decor');
                 if (cb) cb.checked = seasonal;
+                // populate social links
+                try {
+                    const social = JSON.parse(localStorage.getItem('socialLinks') || '{}');
+                    if (social) {
+                        const keys = ['youtube','google','github','twitter'];
+                        keys.forEach(k => {
+                            const el = document.getElementById('social-' + k);
+                            if (el) el.value = social[k] || '';
+                        });
+                    }
+                } catch (e) { console.warn(e); }
             } catch (e) { console.warn(e); }
         }
     </script>

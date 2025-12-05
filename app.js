@@ -419,6 +419,67 @@ document.addEventListener('DOMContentLoaded', function() {
     localStorage.setItem('pageVisits', JSON.stringify(visits));
 });
 
+// Ensure there's a global showAdminLogin fallback (for pages other than login.html)
+if (typeof window.showAdminLogin !== 'function') {
+    window.showAdminLogin = function() {
+        const adminPassword = prompt('Enter Admin Password:');
+        if (adminPassword === 'admin@2025') {
+            localStorage.setItem('adminToken', Date.now());
+            window.location.href = 'admin.html';
+        } else if (adminPassword !== null) {
+            alert('Invalid admin password!');
+        }
+    };
+}
+
+// Mobile/touch admin trigger: detect 3 quick taps anywhere on the screen
+(function setupMobileAdminTrigger() {
+    let touchCount = 0;
+    let touchTimer = null;
+    function reset() { touchCount = 0; if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; } }
+
+    document.addEventListener('touchend', function(e) {
+        // Only enable on narrow screens (mobile)
+        if (window.innerWidth > 768) return;
+        touchCount++;
+        if (touchTimer) clearTimeout(touchTimer);
+        touchTimer = setTimeout(() => reset(), 700);
+        if (touchCount === 3) {
+            reset();
+            // show admin login prompt
+            try { window.showAdminLogin(); } catch (err) { console.warn('admin login failed', err); }
+        }
+    }, { passive: true });
+})();
+
+// Social links: replace footer anchors with configured links from localStorage
+function applySocialLinks() {
+    try {
+        const links = JSON.parse(localStorage.getItem('socialLinks') || '{}');
+        if (!links) return;
+        // mapping of classes to keys
+        const mapping = {
+            'social-youtube': 'youtube',
+            'social-google': 'google',
+            'social-github': 'github',
+            'social-twitter': 'twitter'
+        };
+        Object.keys(mapping).forEach(cls => {
+            const key = mapping[cls];
+            const el = document.querySelector('a.' + cls);
+            if (el) {
+                const url = links[key] || el.getAttribute('data-default') || '#';
+                el.setAttribute('href', url);
+                el.setAttribute('target', '_blank');
+                el.setAttribute('rel', 'noopener noreferrer');
+            }
+        });
+    } catch (e) { console.warn('applySocialLinks error', e); }
+}
+
+document.addEventListener('DOMContentLoaded', applySocialLinks);
+window.addEventListener('storage', function(e) { if (e.key === 'socialLinks') applySocialLinks(); });
+
 // Hero video carousel: cycles through local videos when the NEXT button is clicked
 document.addEventListener('DOMContentLoaded', function() {
     try {
