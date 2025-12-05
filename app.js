@@ -382,6 +382,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 500);
 });
 
+// Seasonal decorations: apply class to body when admin toggles seasonal mode
+function applySeasonalDecor() {
+    try {
+        const enabled = localStorage.getItem('seasonalDecor') === '1';
+        if (enabled) document.body.classList.add('seasonal-on');
+        else document.body.classList.remove('seasonal-on');
+    } catch (e) { console.warn('applySeasonalDecor error', e); }
+}
+
+// Apply on load and watch for changes (in case admin toggles in another tab)
+document.addEventListener('DOMContentLoaded', function() { applySeasonalDecor(); });
+window.addEventListener('storage', function(e) {
+    if (e.key === 'seasonalDecor') applySeasonalDecor();
+});
+
 
 // ==================
 // Auto-Login Check
