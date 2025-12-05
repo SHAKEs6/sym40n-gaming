@@ -193,13 +193,10 @@
                         currentAudio = new Audio(url);
                         currentAudio.crossOrigin = 'anonymous';
                         currentAudio.autoplay = true;
-                        currentAudio.loop = false;
-                        currentAudio.volume = 0.8;
+                        currentAudio.loop = true;
+                        currentAudio.volume = 0.4;
                         currentAudio.play().catch(e=> console.warn('autoplay blocked', e));
-                        let ctrl = document.getElementById('music-control');
-                        if (!ctrl){ ctrl = document.createElement('div'); ctrl.id = 'music-control'; Object.assign(ctrl.style, { position:'fixed', left:'20px', bottom:'20px', zIndex:99999, background:'rgba(0,0,0,0.6)', color:'#fff', padding:'8px', borderRadius:'8px' }); document.body.appendChild(ctrl); }
-                        ctrl.innerHTML = '<button id="stop-music">Stop</button> <a href="'+url+'" target="_blank" rel="noopener">Open</a>';
-                        document.getElementById('stop-music').onclick = ()=> { if (currentAudio) currentAudio.pause(); };
+                        // NO UI CONTROL - music plays silently in background
                     } catch(e){ console.error(e); }
                 }
 
