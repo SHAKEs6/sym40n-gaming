@@ -303,62 +303,84 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch (e) { console.warn('music player init failed', e); }
 });
 
-// Poll repo-hosted now_playing.json for broadcast commands (approximate sync)
-(function setupBroadcastPoll() {
-    const rawUrl = 'https://raw.githubusercontent.com/SHAKEs6/sym40n-gaming/main/site_state/now_playing.json';
-    let lastTs = null;
+// --- Broadcast polling: checks repo broadcast.json for play/pause commands ---
+const BROADCAST_RAW_URL = 'https://raw.githubusercontent.com/SHAKEs6/sym40n-gaming/main/broadcast.json';
+let lastBroadcastTimestamp = sessionStorage.getItem('lastBroadcastTS') || null;
+
+function startBroadcastPolling(intervalMs = 5000) {
+    // require audio element presence
+    const audio = document.getElementById('site-audio');
+    if (!audio) return;
 
     async function poll() {
         try {
-            const r = await fetch(rawUrl + '?_=' + Date.now(), { cache: 'no-store' });
-            if (!r.ok) return; // no broadcast file yet
-            const text = await r.text();
-            if (!text) return;
-            let payload;
-            try { payload = JSON.parse(text); } catch (e) {
-                // if file is base64 content (raw returns JSON for created file), try decode
-                try {
-                    const meta = JSON.parse(text);
-                    if (meta && meta.content) {
-                        payload = JSON.parse(atob(meta.content));
-                    }
-                } catch (er) { return; }
-            }
-            if (!payload || !payload.ts) return;
-            if (payload.ts === lastTs) return; // no change
-            lastTs = payload.ts;
-
-            // Handle actions: play / pause / stop
-            const audio = document.getElementById('site-audio');
-            if (!audio) return;
-
-            if (payload.action === 'play') {
-                // if different track, load it
-                if (audio.src !== payload.trackUrl) {
-                    audio.src = payload.trackUrl;
-                    const titleEl = document.getElementById('music-title');
-                    if (titleEl) titleEl.textContent = payload.title || payload.trackUrl.split('/').pop();
-                }
-                // attempt to play; browsers may block autoplay without gesture
-                audio.play().catch(() => {
-                    // show a small notice prompting user to click play
-                    showNotification('Click to enable audio playback', 'info');
-                });
-            } else if (payload.action === 'pause') {
-                try { audio.pause(); } catch (e) {}
-            } else if (payload.action === 'stop') {
-                try { audio.pause(); audio.currentTime = 0; } catch (e) {}
-            }
+            const res = await fetch(BROADCAST_RAW_URL + '?_=' + Date.now(), {cache: 'no-store'});
+            if (!res.ok) return; // no broadcast file yet
+            const txt = await res.text();
+            if (!txt) return;
+            let b;
+            try { b = JSON.parse(txt); } catch (e) { return; }
+            if (!b || !b.timestamp) return;
+            if (b.timestamp === lastBroadcastTimestamp) return; // no change
+            lastBroadcastTimestamp = b.timestamp;
+            sessionStorage.setItem('lastBroadcastTS', lastBroadcastTimestamp);
+            handleBroadcast(b);
         } catch (e) {
-            // ignore polling errors
-        } finally {
-            setTimeout(poll, 5000);
+            // ignore network errors
+            //console.warn('broadcast poll error', e);
         }
     }
 
-    // start polling
-    setTimeout(poll, 2000);
-})();
+    // initial poll
+    poll();
+    return setInterval(poll, intervalMs);
+}
+
+function handleBroadcast(b) {
+    try {
+        const audio = document.getElementById('site-audio');
+        if (!audio) return;
+        const consent = localStorage.getItem('site-audio-consent') === '1';
+        if (b.action === 'play' && b.trackUrl) {
+            // set src and attempt play only if user consented
+            audio.src = b.trackUrl;
+            const titleEl = document.getElementById('music-title');
+            if (titleEl) titleEl.textContent = b.title || 'Broadcast Track';
+            if (consent) {
+                audio.play().catch(() => {});
+            } else {
+                // show a small toast prompting user to enable audio
+                showNotification('Live broadcast available — enable audio to listen', 'info');
+            }
+        } else if (b.action === 'pause') {
+            audio.pause && audio.pause();
+        }
+    } catch (e) { console.warn('handleBroadcast error', e); }
+}
+
+// Ensure polling starts once DOM is ready and player exists
+document.addEventListener('DOMContentLoaded', function() {
+    // Add small consent UI if not consented yet
+    try {
+        if (!localStorage.getItem('site-audio-consent')) {
+            const consentBar = document.createElement('div');
+            consentBar.id = 'audio-consent-bar';
+            consentBar.style.cssText = 'position:fixed;bottom:80px;right:16px;background:rgba(0,0,0,0.8);color:white;padding:10px;border-radius:8px;z-index:10001;display:flex;gap:8px;align-items:center;';
+            consentBar.innerHTML = '<div style="font-weight:700;">Enable audio playback?</div>';
+            const btn = document.createElement('button'); btn.textContent = 'Enable';
+            btn.style.cssText = 'background:#edff66;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-weight:700;';
+            btn.onclick = () => { localStorage.setItem('site-audio-consent','1'); consentBar.remove(); showNotification('Audio enabled — broadcasts will play automatically', 'success'); };
+            const btn2 = document.createElement('button'); btn2.textContent='Close'; btn2.style.cssText='background:transparent;border:1px solid #666;color:white;padding:6px 10px;border-radius:6px;cursor:pointer;'; btn2.onclick=()=>consentBar.remove();
+            consentBar.appendChild(btn); consentBar.appendChild(btn2);
+            document.body.appendChild(consentBar);
+        }
+    } catch(e){}
+
+    // start polling once audio element exists (may have been injected earlier)
+    const check = setInterval(()=>{
+        if (document.getElementById('site-audio')) { clearInterval(check); startBroadcastPolling(5000); }
+    }, 500);
+});
 
 
 // ==================
