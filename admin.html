@@ -39,12 +39,24 @@
 
     <div id="adminPanel" style="display:none;">
       <section>
-        <h3>Cincopa Gallery ID</h3>
+        <h3>Upload Music</h3>
         <div class="form-group">
-          <label>Enter Cincopa Gallery ID (e.g., A0CApufrlbC3)</label>
-          <input id="cincId" placeholder="A0CApufrlbC3" />
+          <label>Select Audio File (MP3, OGG, WAV)</label>
+          <input id="musicFile" type="file" accept="audio/*" />
         </div>
-        <button onclick="playMusic()">Play Music</button>
+        <button onclick="uploadMusic()">Upload Music</button>
+        <div id="uploadMsg" style="margin-top:8px;"></div>
+      </section>
+
+      <section style="margin-top:20px;">
+        <h3>Play Music</h3>
+        <div class="form-group">
+          <label>Select File to Play</label>
+          <select id="musicSelect">
+            <option value="">Loading files...</option>
+          </select>
+        </div>
+        <button onclick="playSelectedMusic()">Play</button>
       </section>
 
       <section style="margin-top:20px;">
@@ -128,6 +140,57 @@
       else showMsg('Failed to play music');
     }
 
+    async function uploadMusic() {
+      const file = document.getElementById('musicFile').files[0];
+      if (!file) return showMsg('Select a file');
+      const fd = new FormData();
+      fd.append('music', file);
+      const uploadMsg = document.getElementById('uploadMsg');
+      uploadMsg.textContent = 'Uploading...';
+      const res = await fetch('/admin/upload-music', { method: 'POST', body: fd, credentials: 'include' });
+      const data = await res.json();
+      if (data.ok) {
+        uploadMsg.textContent = 'Uploaded: ' + data.filename;
+        document.getElementById('musicFile').value = '';
+        loadMusicFiles();
+      } else {
+        uploadMsg.textContent = 'Upload failed';
+      }
+    }
+
+    async function loadMusicFiles() {
+      try {
+        const res = await fetch('/music/', { credentials: 'include' });
+        const html = await res.text();
+        const select = document.getElementById('musicSelect');
+        const files = html.match(/href="([^"]+\.(?:mp3|ogg|wav|m4a))"/gi) || [];
+        select.innerHTML = '<option value="">Select a file</option>';
+        if (files.length === 0) {
+          select.innerHTML += '<option disabled>No music files found</option>';
+        } else {
+          files.forEach(f => {
+            const name = f.match(/href="([^"]+)"/)[1];
+            select.innerHTML += `<option value="/music/${name}">${name}</option>`;
+          });
+        }
+      } catch (e) {
+        console.log('Auto-load music files requires directory listing');
+      }
+    }
+
+    async function playSelectedMusic() {
+      const url = document.getElementById('musicSelect').value;
+      if (!url) return showMsg('Select a music file');
+      const res = await fetch('/admin/play-music', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: url }),
+        credentials: 'include'
+      });
+      if (res.ok) showMsg('Music playing to all users', 'success');
+      else showMsg('Failed to play music');
+    }
+
     async function setDecoration() {
       const decoration = document.getElementById('decoration').value.trim();
       const res = await fetch('/admin/set-decoration', {
@@ -179,6 +242,7 @@
       if (r.ok) {
         loginBox.style.display = 'none';
         adminPanel.style.display = 'block';
+        loadMusicFiles();
       }
     })();
   </script>

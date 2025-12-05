@@ -19,8 +19,7 @@ const ADMIN_PASS = process.env.ADMIN_PASS || 'adminpass';
 // paths inside backend
 const ROOT = path.join(__dirname, '..');
 const DATA_DIR = path.join(__dirname, 'data');
-const PUBLIC_DIR = path.join(__dirname, 'public');
-const MUSIC_DIR = path.join(PUBLIC_DIR, 'music');
+const MUSIC_DIR = path.join(ROOT, 'music');
 const CONFIG_FILE = path.join(DATA_DIR, 'server-config.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SUBS_FILE = path.join(DATA_DIR, 'subscriptions.json');
@@ -30,7 +29,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 // serve frontend from project root
 app.use(express.static(ROOT));
-// serve music from backend/public/music at /music
+// serve music from root/music folder at /music
 app.use('/music', express.static(MUSIC_DIR));
 
 // ensure folders exist
@@ -49,6 +48,20 @@ try {
 function saveConfig() {
   try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2)); } catch (err) { console.error('Failed to save config', err); }
 }
+
+// Auto-play first music file on startup if none is set
+function initializeMusic() {
+  if (config.currentMusic) return; // already set
+  try {
+    const files = fs.readdirSync(MUSIC_DIR).filter(f => /\.(mp3|ogg|wav|m4a)$/i.test(f)).sort();
+    if (files.length > 0) {
+      config.currentMusic = files[0];
+      saveConfig();
+      console.log(`Auto-playing music: ${files[0]}`);
+    }
+  } catch (err) { console.error('Failed to auto-play music:', err); }
+}
+initializeMusic();
 
 // sessions
 app.use(session({
