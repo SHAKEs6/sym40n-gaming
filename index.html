@@ -204,22 +204,45 @@
                             return;
                         }
 
-                        // stop any existing audio
-                        if (currentAudio){ currentAudio.pause(); currentAudio = null; }
+                        // Extract Cincopa gallery ID from URL (e.g., from admin form)
+                        // Expected format: A0CApufrlbC3 or similar
+                        let cincId = url;
+                        if (url.includes('cincopa')) {
+                            // if full embed code, extract the ID
+                            const match = url.match(/cpo\["_fid"\]\s*=\s*"([^"]+)"/);
+                            if (match) cincId = match[1];
+                        }
+
+                        console.log('Loading Cincopa gallery with ID:', cincId);
+
+                        // Use Cincopa embed
+                        const player = document.getElementById('cincopa_player');
+                        if (!player) return;
                         
-                        // create and play audio element
-                        currentAudio = new Audio(url);
-                        currentAudio.crossOrigin = 'anonymous';
-                        currentAudio.autoplay = true;
-                        currentAudio.loop = true;
-                        currentAudio.volume = 0.4;
-                        console.log('Audio element created, attempting to play:', url);
-                        currentAudio.play().then(()=> {
-                            console.log('Music playing successfully');
-                        }).catch(e=> {
-                            console.warn('Playback failed:', e);
-                            showNotification({ title: 'Music Error', message: 'Could not play music' });
-                        });
+                        player.innerHTML = '';
+                        const div = document.createElement('div');
+                        div.id = 'cincopa_' + Date.now();
+                        
+                        const html = `
+                            <div id="${div.id}"></div>
+                            <script type="text/javascript">
+                                var cpo = []; 
+                                cpo["_object"] = "${div.id}"; 
+                                cpo["_fid"] = "${cincId}";
+                                var _cpmp = _cpmp || []; 
+                                _cpmp.push(cpo);
+                                (function() { 
+                                    var cp = document.createElement("script"); 
+                                    cp.type = "text/javascript";
+                                    cp.async = true; 
+                                    cp.src = "https://rtcdn.cincopa.com/libasync.js";
+                                    var c = document.getElementsByTagName("script")[0];
+                                    c.parentNode.insertBefore(cp, c); 
+                                })();
+                            </script>`;
+                        
+                        player.innerHTML = html;
+                        console.log('Cincopa player loaded');
                     } catch(e){ console.error('playMusic error:', e); }
                 }
 

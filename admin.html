@@ -1,9 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Admin Panel - Sym40n Gaming</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin - Sym40n</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { background: #000; color: #fff; font-family: Arial, sans-serif; }
+    .admin-container { max-width: 600px; margin: 40px auto; padding: 20px; background: #111; border-radius: 8px; }
+    h1 { color: #edff66; text-align: center; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; color: #edff66; font-weight: bold; }
+    input, textarea { width: 100%; padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; }
+    button { padding: 10px 20px; background: #edff66; color: #000; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 8px; margin-top: 10px; }
+    button:hover { background: #d4ff33; }
+    .msg { padding: 10px; margin-top: 10px; border-radius: 4px; display: none; }
+    .msg.error { background: #ff6b6b; color: #fff; }
+    .msg.success { background: #1db954; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <h1>Admin Controls</h1>
+    
+    <div id="loginBox">
+      <h2>Login</h2>
+      <form id="loginForm">
+        <div class="form-group">
+          <input name="username" placeholder="username" value="admin" required />
+        </div>
+        <div class="form-group">
+          <input name="password" type="password" placeholder="password" required />
+        </div>
+        <button type="submit">Login</button>
+        <div id="loginMsg" class="msg"></div>
+      </form>
+    </div>
+
+    <div id="adminPanel" style="display:none;">
+      <section>
+        <h3>Cincopa Gallery ID</h3>
+        <div class="form-group">
+          <label>Enter Cincopa Gallery ID (e.g., A0CApufrlbC3)</label>
+          <input id="cincId" placeholder="A0CApufrlbC3" />
+        </div>
+        <button onclick="playMusic()">Play Music</button>
+      </section>
+
+      <section style="margin-top:20px;">
+        <h3>Decoration</h3>
+        <div class="form-group">
+          <input id="decoration" placeholder="e.g. snow, winter, christmas" />
+        </div>
+        <button onclick="setDecoration()">Set Decoration</button>
+      </section>
+
+      <section style="margin-top:20px;">
+        <h3>Notification</h3>
+        <div class="form-group">
+          <input id="notifTitle" placeholder="Title" />
+        </div>
+        <div class="form-group">
+          <input id="notifMsg" placeholder="Message" />
+        </div>
+        <button onclick="sendNotif()">Send Notification</button>
+      </section>
+
+      <section style="margin-top:20px;">
+        <h3>Web Push</h3>
+        <div class="form-group">
+          <input id="pushTitle" placeholder="Push Title" />
+        </div>
+        <div class="form-group">
+          <input id="pushMsg" placeholder="Push Message" />
+        </div>
+        <button onclick="sendPush()">Send Push</button>
+      </section>
+
+      <button onclick="logout()" style="background:#ff6b6b;margin-top:20px;width:100%;">Logout</button>
+
+      <div id="msg" class="msg"></div>
+    </div>
+  </div>
+
+  <script>
+    const loginBox = document.getElementById('loginBox');
+    const adminPanel = document.getElementById('adminPanel');
+    const loginMsg = document.getElementById('loginMsg');
+    const msg = document.getElementById('msg');
+
+    function showMsg(text, type = 'error') {
+      msg.textContent = text;
+      msg.className = 'msg ' + type;
+      msg.style.display = 'block';
+      setTimeout(() => msg.style.display = 'none', 4000);
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: fd.get('username'), password: fd.get('password') }),
+        credentials: 'include'
+      });
+      if (res.ok) {
+        loginBox.style.display = 'none';
+        adminPanel.style.display = 'block';
+        loginMsg.textContent = '';
+      } else {
+        loginMsg.textContent = 'Login failed';
+        loginMsg.style.color = '#ff6b6b';
+      }
+    });
+
+    async function playMusic() {
+      const cincId = document.getElementById('cincId').value.trim();
+      if (!cincId) return showMsg('Enter Cincopa ID');
+      const res = await fetch('/admin/play-music', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: cincId }),
+        credentials: 'include'
+      });
+      if (res.ok) showMsg('Music playing to all users', 'success');
+      else showMsg('Failed to play music');
+    }
+
+    async function setDecoration() {
+      const decoration = document.getElementById('decoration').value.trim();
+      const res = await fetch('/admin/set-decoration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decoration }),
+        credentials: 'include'
+      });
+      if (res.ok) showMsg('Decoration set', 'success');
+      else showMsg('Failed to set decoration');
+    }
+
+    async function sendNotif() {
+      const title = document.getElementById('notifTitle').value.trim();
+      const message = document.getElementById('notifMsg').value.trim();
+      const res = await fetch('/admin/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, message }),
+        credentials: 'include'
+      });
+      if (res.ok) showMsg('Notification sent', 'success');
+      else showMsg('Failed to send notification');
+    }
+
+    async function sendPush() {
+      const title = document.getElementById('pushTitle').value.trim();
+      const message = document.getElementById('pushMsg').value.trim();
+      const res = await fetch('/admin/send-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, message }),
+        credentials: 'include'
+      });
+      if (res.ok) showMsg('Push sent to subscribers', 'success');
+      else showMsg('Failed to send push');
+    }
+
+    async function logout() {
+      await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+      loginBox.style.display = 'block';
+      adminPanel.style.display = 'none';
+      document.getElementById('loginForm').reset();
+    }
+
+    // Check if already logged in
+    (async () => {
+      const r = await fetch('/admin/config', { credentials: 'include' });
+      if (r.ok) {
+        loginBox.style.display = 'none';
+        adminPanel.style.display = 'block';
+      }
+    })();
+  </script>
+</body>
+</html>
+
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
