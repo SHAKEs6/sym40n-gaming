@@ -63,6 +63,183 @@
         </section>
     </div>
 
-    <script src="app.js"></script>
-</body>    
+        <script src="app.js"></script>
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            (function(){
+                const socket = io();
+                let currentAudio = null;
+                let audioUnlocked = false;
+                let pendingMusicUrl = null;
+                let audioContext = null;
+
+                // create enable-sound UI: large modal on first visit, floating button afterwards
+                (function createEnableSoundUI(){
+                    const seenKey = 'audioUnlockSeen';
+                    const seen = localStorage.getItem(seenKey);
+
+                    async function unlockAudio(triggerEl){
+                        try{
+                            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                            const buffer = audioContext.createBuffer(1, 1, 22050);
+                            const src = audioContext.createBufferSource();
+                            src.buffer = buffer;
+                            src.connect(audioContext.destination);
+                            src.start(0);
+                            await audioContext.resume();
+                            audioUnlocked = true;
+                            // remove UI
+                            if (triggerEl) triggerEl.remove();
+                            const modal = document.getElementById('enable-sound-modal'); if (modal) modal.remove();
+                            const float = document.getElementById('enable-sound-btn'); if (float) float.remove();
+                            if (pendingMusicUrl) { playMusic(pendingMusicUrl); pendingMusicUrl = null; }
+                            localStorage.setItem(seenKey, '1');
+                        } catch (e) { console.warn('unlock failed', e); }
+                    }
+
+                    function createFloating(){
+                        // small floating button
+                        const btn = document.createElement('button');
+                        btn.id = 'enable-sound-btn';
+                        btn.textContent = 'Enable Sound';
+                        Object.assign(btn.style, { position:'fixed', right:'20px', bottom:'20px', zIndex:99999, padding:'10px 12px', background:'#1db954', color:'#fff', border:'none', borderRadius:'8px', cursor:'pointer' });
+                        btn.onclick = () => unlockAudio(btn);
+                        document.body.appendChild(btn);
+                    }
+
+                    function createModal(){
+                        const modal = document.createElement('div');
+                        modal.id = 'enable-sound-modal';
+                        Object.assign(modal.style, { position:'fixed', left:0, top:0, right:0, bottom:0, background:'rgba(0,0,0,0.85)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100000 });
+                        modal.innerHTML = `
+                            <div style="max-width:520px;padding:30px;text-align:center;">
+                                <h2 style="color:#edff66;margin-bottom:8px;">Enable Sound</h2>
+                                <p style="color:#ddd;margin-bottom:20px;">To hear site-wide music and announcements, please enable sound for this site.</p>
+                                <div style="display:flex;gap:12px;justify-content:center;">
+                                    <button id="enable-sound-modal-btn" style="padding:14px 20px;background:#1db954;border:none;border-radius:8px;color:#fff;font-weight:700;">Enable Sound</button>
+                                    <button id="enable-sound-modal-skip" style="padding:14px 20px;background:transparent;border:1px solid #555;border-radius:8px;color:#fff;">Skip</button>
+                                </div>
+                            </div>`;
+                        document.body.appendChild(modal);
+                        document.getElementById('enable-sound-modal-btn').onclick = function(){ unlockAudio(modal); };
+                        document.getElementById('enable-sound-modal-skip').onclick = function(){
+                            localStorage.setItem(seenKey, '1');
+                            modal.remove();
+                            createFloating();
+                        };
+                    }
+
+                    if (!seen) {
+                        // first visit: show modal
+                        createModal();
+                    } else {
+                        // subsequent visits: show floating button
+                        createFloating();
+                    }
+                })();
+
+                socket.on('connect', () => {
+                    console.log('connected to server');
+                });
+
+                socket.on('config', cfg => {
+                    if (cfg && cfg.decoration) applyDecoration(cfg.decoration);
+                    if (cfg && cfg.currentMusic) console.log('current music', cfg.currentMusic);
+                });
+
+                socket.on('decoration', dec => applyDecoration(dec));
+                socket.on('notification', payload => showNotification(payload));
+                socket.on('play-music', data => { if (data && data.url) playMusic(data.url); });
+
+                function applyDecoration(decoration){
+                    if (!decoration){ document.body.classList.remove('seasonal-on'); document.body.removeAttribute('data-decoration'); return; }
+                    document.body.setAttribute('data-decoration', decoration);
+                    if (decoration === 'snow' || decoration === 'winter' || decoration === 'christmas'){
+                        document.body.classList.add('seasonal-on');
+                        const overlay = document.getElementById('snow-overlay'); if (overlay) overlay.style.display = '';
+                    } else {
+                        document.body.classList.remove('seasonal-on');
+                        const overlay = document.getElementById('snow-overlay'); if (overlay) overlay.style.display = 'none';
+                    }
+                }
+
+                function showNotification({title, message} = {}){
+                    const el = document.createElement('div');
+                    el.className = 'site-notification';
+                    el.innerHTML = '<strong>'+escapeHtml(title||'')+'</strong><div>'+escapeHtml(message||'')+'</div>';
+                    Object.assign(el.style, { position:'fixed', right:'20px', top:'20px', background:'#111', color:'#fff', padding:'12px', borderRadius:'8px', zIndex:99999, boxShadow:'0 4px 16px rgba(0,0,0,0.4)' });
+                    document.body.appendChild(el);
+                    setTimeout(()=> el.remove(), 8000);
+                }
+
+                function playMusic(url){
+                    try{
+                        if (!audioUnlocked){
+                            // queue and prompt user to enable sound
+                            pendingMusicUrl = url;
+                            const btn = document.getElementById('enable-sound-btn');
+                            if (btn) {
+                                // flash the button to draw attention
+                                btn.style.animation = 'pulse 1s infinite';
+                                setTimeout(()=> btn.style.animation = '', 6000);
+                            } else {
+                                // fallback: create a temporary notice
+                                showNotification({ title: 'Enable Sound', message: 'Click "Enable Sound" to allow audio playback' });
+                            }
+                            return;
+                        }
+
+                        if (currentAudio){ currentAudio.pause(); currentAudio = null; }
+                        currentAudio = new Audio(url);
+                        currentAudio.crossOrigin = 'anonymous';
+                        currentAudio.autoplay = true;
+                        currentAudio.loop = false;
+                        currentAudio.volume = 0.8;
+                        currentAudio.play().catch(e=> console.warn('autoplay blocked', e));
+                        let ctrl = document.getElementById('music-control');
+                        if (!ctrl){ ctrl = document.createElement('div'); ctrl.id = 'music-control'; Object.assign(ctrl.style, { position:'fixed', left:'20px', bottom:'20px', zIndex:99999, background:'rgba(0,0,0,0.6)', color:'#fff', padding:'8px', borderRadius:'8px' }); document.body.appendChild(ctrl); }
+                        ctrl.innerHTML = '<button id="stop-music">Stop</button> <a href="'+url+'" target="_blank" rel="noopener">Open</a>';
+                        document.getElementById('stop-music').onclick = ()=> { if (currentAudio) currentAudio.pause(); };
+                    } catch(e){ console.error(e); }
+                }
+
+                function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+            })();
+        </script>
+        <script>
+            // Web Push subscription helper for visitors
+            (function(){
+                async function enablePush(){
+                    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return alert('Push not supported in this browser');
+                    try{
+                        const reg = await navigator.serviceWorker.register('/sw.js');
+                        const res = await fetch('/vapidPublicKey');
+                        if (!res.ok) return alert('Failed fetching VAPID key');
+                        const { publicKey } = await res.json();
+                        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+                        await fetch('/subscribe', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(sub) });
+                        alert('Subscribed to push notifications');
+                    }catch(e){ console.error(e); alert('Failed to subscribe: '+ (e.message||e)); }
+                }
+
+                function urlBase64ToUint8Array(base64String) {
+                    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                    const rawData = window.atob(base64);
+                    const outputArray = new Uint8Array(rawData.length);
+                    for (let i = 0; i < rawData.length; ++i) {
+                        outputArray[i] = rawData.charCodeAt(i);
+                    }
+                    return outputArray;
+                }
+
+                // add floating button
+                const btn = document.createElement('button');
+                btn.textContent = 'Enable Push';
+                Object.assign(btn.style, { position:'fixed', right:'20px', bottom:'80px', zIndex:99999, padding:'10px 12px', background:'#edff66', border:'none', borderRadius:'8px', cursor:'pointer' });
+                btn.onclick = enablePush;
+                document.body.appendChild(btn);
+            })();
+        </script>
+    </body>
 </html>

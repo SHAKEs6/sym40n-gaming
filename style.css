@@ -32,6 +32,7 @@ header{
 .head-left{
     display: flex;
     align-items: center;
+    position: relative;
 }
 
 .head-left img{
@@ -112,11 +113,11 @@ header{
     /* Santa hat emoji positioned over the first letter */
     content: "🎅";
     position: absolute;
-    left: -18px;
-    top: -44px;
-    font-size: 48px;
+    left: -14px;
+    top: -36px;
+    font-size: 64px; /* larger so it is visible on most displays */
     transform: rotate(-18deg);
-    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));
+    filter: drop-shadow(0 3px 8px rgba(0,0,0,0.6));
 }
 
 .seasonal-on .logo-text:after{
@@ -125,8 +126,20 @@ header{
     position: absolute;
     right: -18px;
     top: -8px;
-    font-size: 28px;
+    font-size: 32px;
     animation: floaty 3s ease-in-out infinite, twinkle 1.6s linear infinite;
+}
+
+/* Header logo decorations (for pages that use an image logo) */
+.seasonal-on .head-left:before{
+    content: "🎅";
+    position: absolute;
+    left: 6px;
+    top: -10px;
+    font-size: 30px;
+    transform: rotate(-16deg);
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+    pointer-events: none;
 }
 
 @keyframes floaty{
@@ -149,8 +162,14 @@ header{
     z-index: 50;
     background-image: radial-gradient(rgba(255,255,255,0.85) 1px, transparent 2px);
     background-size: 8px 8px;
-    opacity: 0.04;
+    opacity: 0.12; /* increase visibility so decorations are clearly noticeable */
     animation: snowmove 12s linear infinite;
+}
+
+/* A slightly denser snow layer for smaller screens where the overlay may be less visible */
+@media (max-width: 768px) {
+    .seasonal-on .snow-overlay{ background-size: 6px 6px; opacity: 0.18; }
+    .seasonal-on .logo-text:before{ font-size: 48px; top: -28px; left: -10px; }
 }
 
 @keyframes snowmove{

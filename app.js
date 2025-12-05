@@ -251,7 +251,8 @@ function showAnnouncementBanner(ann) {
 }
 
 // Music player UI injected on every page
-document.addEventListener('DOMContentLoaded', function() {
+let broadcastPollerID = null;
+function initMusicPlayer() {
     try {
         const musicList = DataManager.getMusic();
         if (!musicList || musicList.length === 0) return;
@@ -265,10 +266,19 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.appendChild(player);
         }
 
-        const audio = document.createElement('audio');
+        // clear existing contents to avoid duplicating controls when re-initializing
+        player.innerHTML = '';
+
+        // create or reuse audio element inside the player
+        let audio = document.getElementById('site-audio');
+        if (!audio) {
+            audio = document.createElement('audio');
+            audio.id = 'site-audio';
+        }
         audio.id = 'site-audio';
-        audio.controls = false;
-        audio.style.display = 'none';
+        // show native controls as fallback and for accessibility
+        audio.controls = true;
+        audio.style.display = 'inline-block';
         player.appendChild(audio);
 
         const titleEl = document.createElement('div');
@@ -297,10 +307,41 @@ document.addEventListener('DOMContentLoaded', function() {
         nextBtn.onclick = () => { loadTrack(idx+1); audio.play().catch(()=>{}); };
         playBtn.onclick = () => { if (audio.paused) audio.play().catch(()=>{}); else audio.pause(); };
 
+        // Update play button UI on audio play/pause
+        audio.addEventListener('play', () => { playBtn.textContent = '⏸'; });
+        audio.addEventListener('pause', () => { playBtn.textContent = '⏯'; });
+
         audio.onended = () => { loadTrack(idx+1); audio.play().catch(()=>{}); };
 
+        // load track; if consent exists attempt auto-play; otherwise leave loaded
         loadTrack(idx);
+        if (localStorage.getItem('site-audio-consent') === '1') {
+            audio.play().catch((err) => { console.warn('autoplay failed', err); showNotification('Audio play blocked — tap the player to enable', 'warn'); });
+        }
+
+        // ensure broadcast polling is started when player is present
+        if (!broadcastPollerID) broadcastPollerID = startBroadcastPolling(5000);
     } catch (e) { console.warn('music player init failed', e); }
+}
+
+// initialize on load (if music exists)
+document.addEventListener('DOMContentLoaded', function() {
+    try { initMusicPlayer(); } catch (e) { console.warn(e); }
+});
+
+// react to changes to siteMusic and play-consent from other tabs/admin actions
+window.addEventListener('storage', function(e) {
+    try {
+        if (e.key === 'siteMusic') {
+            // refresh or create player if tracks were added/removed
+            setTimeout(() => { initMusicPlayer(); }, 150);
+        }
+        if (e.key === 'site-audio-consent' && e.newValue === '1') {
+            // attempt to play immediately if user gave consent
+            const a = document.getElementById('site-audio');
+            if (a) a.play().catch(()=>{});
+        }
+    } catch (err) { console.warn(err); }
 });
 
 // --- Broadcast polling: checks repo broadcast.json for play/pause commands ---
@@ -359,6 +400,7 @@ function handleBroadcast(b) {
 }
 
 // Ensure polling starts once DOM is ready and player exists
+// Ensure consent UI is shown and broadcast polling starts once audio element exists
 document.addEventListener('DOMContentLoaded', function() {
     // Add small consent UI if not consented yet
     try {
@@ -367,9 +409,16 @@ document.addEventListener('DOMContentLoaded', function() {
             consentBar.id = 'audio-consent-bar';
             consentBar.style.cssText = 'position:fixed;bottom:80px;right:16px;background:rgba(0,0,0,0.8);color:white;padding:10px;border-radius:8px;z-index:10001;display:flex;gap:8px;align-items:center;';
             consentBar.innerHTML = '<div style="font-weight:700;">Enable audio playback?</div>';
-            const btn = document.createElement('button'); btn.textContent = 'Enable';
+            const btn = document.createElement('button'); btn.textContent = 'Enable & Play';
             btn.style.cssText = 'background:#edff66;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-weight:700;';
-            btn.onclick = () => { localStorage.setItem('site-audio-consent','1'); consentBar.remove(); showNotification('Audio enabled — broadcasts will play automatically', 'success'); };
+            btn.onclick = () => {
+                localStorage.setItem('site-audio-consent','1');
+                consentBar.remove();
+                // attempt to play current audio if present
+                const a = document.getElementById('site-audio');
+                if (a) { a.play().catch(()=>{}); }
+                showNotification('Audio enabled — broadcasts and player will play', 'success');
+            };
             const btn2 = document.createElement('button'); btn2.textContent='Close'; btn2.style.cssText='background:transparent;border:1px solid #666;color:white;padding:6px 10px;border-radius:6px;cursor:pointer;'; btn2.onclick=()=>consentBar.remove();
             consentBar.appendChild(btn); consentBar.appendChild(btn2);
             document.body.appendChild(consentBar);
@@ -378,16 +427,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // start polling once audio element exists (may have been injected earlier)
     const check = setInterval(()=>{
-        if (document.getElementById('site-audio')) { clearInterval(check); startBroadcastPolling(5000); }
+        if (document.getElementById('site-audio')) { clearInterval(check); if (!broadcastPollerID) broadcastPollerID = startBroadcastPolling(5000); }
     }, 500);
 });
 
 // Seasonal decorations: apply class to body when admin toggles seasonal mode
 function applySeasonalDecor() {
     try {
-        const enabled = localStorage.getItem('seasonalDecor') === '1';
-        if (enabled) document.body.classList.add('seasonal-on');
-        else document.body.classList.remove('seasonal-on');
+        // If admin hasn't explicitly chosen, enable seasonals automatically in December
+        const explicit = localStorage.getItem('seasonalDecor');
+        let enabled;
+        if (explicit === null || explicit === undefined) {
+            const now = new Date();
+            enabled = (now.getMonth() === 11); // December (0-based months)
+        } else {
+            enabled = explicit === '1';
+        }
+        if (enabled) {
+            document.body.classList.add('seasonal-on');
+            // also add to the root element so CSS matches regardless of where styles are scoped
+            document.documentElement.classList.add('seasonal-on');
+        } else {
+            document.body.classList.remove('seasonal-on');
+            document.documentElement.classList.remove('seasonal-on');
+        }
     } catch (e) { console.warn('applySeasonalDecor error', e); }
 }
 
@@ -434,21 +497,43 @@ if (typeof window.showAdminLogin !== 'function') {
 
 // Mobile/touch admin trigger: detect 3 quick taps anywhere on the screen
 (function setupMobileAdminTrigger() {
-    let touchCount = 0;
-    let touchTimer = null;
-    function reset() { touchCount = 0; if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; } }
+    // Detect triple-tap OR long-press anywhere on the page to open admin prompt on mobile.
+    let tapTimestamps = [];
+    let longPressTimer = null;
+    const TRIPLE_TAP_WINDOW = 1200; // ms - allow slightly slower tapping
+    const LONG_PRESS_MS = 700; // ms - comfortable long-press duration
+
+    function tryOpenAdmin() {
+        try { window.showAdminLogin(); } catch (err) { console.warn('admin login failed', err); }
+    }
+
+    document.addEventListener('touchstart', function(e) {
+        if (window.innerWidth > 1024) return; // only mobile & small tablets
+        // start long-press timer
+        longPressTimer = setTimeout(() => { tryOpenAdmin(); }, LONG_PRESS_MS);
+    }, { passive: true });
+
+    // cancel long-press if touch moves or is canceled (user is scrolling)
+    document.addEventListener('touchmove', function() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } }, { passive: true });
+    document.addEventListener('touchcancel', function() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } }, { passive: true });
 
     document.addEventListener('touchend', function(e) {
-        // Only enable on narrow screens (mobile)
-        if (window.innerWidth > 768) return;
-        touchCount++;
-        if (touchTimer) clearTimeout(touchTimer);
-        touchTimer = setTimeout(() => reset(), 700);
-        if (touchCount === 3) {
-            reset();
-            // show admin login prompt
-            try { window.showAdminLogin(); } catch (err) { console.warn('admin login failed', err); }
+        if (window.innerWidth > 1024) return;
+        // long-press handled via timer, clear it
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+
+        // record tap time
+        const now = Date.now();
+        tapTimestamps.push(now);
+        // keep only last 3 timestamps
+        if (tapTimestamps.length > 3) tapTimestamps.shift();
+        if (tapTimestamps.length === 3 && (tapTimestamps[2] - tapTimestamps[0] <= TRIPLE_TAP_WINDOW)) {
+            // triple tap detected
+            tapTimestamps = [];
+            tryOpenAdmin();
         }
+        // clear older taps after a short window
+        setTimeout(() => { if (tapTimestamps.length > 0) tapTimestamps = []; }, TRIPLE_TAP_WINDOW + 100);
     }, { passive: true });
 })();
 

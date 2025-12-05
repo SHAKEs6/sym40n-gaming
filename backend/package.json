@@ -1,13 +1,9 @@
 {
-  "name": "sym40n-gaming",
+  "name": "sym40n-backend",
   "version": "1.0.0",
-  "description": "Sym40n Gaming Platform - static site",
   "private": true,
   "scripts": {
-    "build": "echo \"No build required for static site\"",
-    "start": "node backend/server.js",
-    "serve-static": "npx serve -s . -l $PORT",
-    "postinstall": "cd backend && npm install"
+    "start": "node server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

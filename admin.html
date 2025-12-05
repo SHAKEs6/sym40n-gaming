@@ -387,6 +387,18 @@
                 </div>
 
                 <div class="card">
+                    <h3>Upload Track To Server</h3>
+                    <form id="serverUploadForm">
+                        <div class="form-group">
+                            <label for="server-music-file">Select File</label>
+                            <input id="server-music-file" type="file" accept="audio/*" />
+                        </div>
+                        <button class="submit-btn" type="button" onclick="serverUpload()">Upload To Server</button>
+                    </form>
+                    <div id="serverUploadResult" style="margin-top:8px;color:lightgray"></div>
+                </div>
+
+                <div class="card">
                     <h3>Upload Track From Device (commits to repo)</h3>
                     <p style="color:gray;">Select an MP3/OGG file and provide a temporary GitHub Personal Access Token with `repo` scope to upload into the repository's <code>audio/</code> folder. Files >100MB may fail.</p>
                     <div class="form-group">
@@ -454,14 +466,14 @@
     </div>
 
     <script>
-        // Check if admin is logged in
-        window.addEventListener('load', function() {
-            const adminToken = localStorage.getItem('adminToken');
-            if (!adminToken) {
-                window.location.href = 'index.html';
-            }
+        // Check server-side session; redirect to login if not authenticated
+        window.addEventListener('load', async function() {
+            try {
+                const r = await fetch('/admin/config', { credentials: 'include' });
+                if (!r.ok) { window.location.href = 'admin-login.html'; return; }
+            } catch (e) { window.location.href = 'admin-login.html'; return; }
 
-                // Load stored data
+            // Load stored data
             loadUserData();
             renderNotifications();
             renderMusicList();
@@ -721,6 +733,35 @@
             } catch (e) { console.warn('save social links', e); }
 
             alert('Settings saved successfully!');
+        }
+
+        // Call server to set decoration when toggled
+        async function syncDecorationToServer(){
+            try{
+                const seasonal = document.getElementById('seasonal-decor').checked;
+                const decoration = seasonal ? 'snow' : '';
+                await fetch('/admin/set-decoration', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ decoration }), credentials: 'include' });
+            }catch(e){ console.warn('syncDecoration', e); }
+        }
+
+        async function serverUpload(){
+            const input = document.getElementById('server-music-file');
+            const out = document.getElementById('serverUploadResult');
+            if (!input || !input.files || input.files.length === 0) return alert('Select a file');
+            const file = input.files[0];
+            const fd = new FormData(); fd.append('music', file);
+            out.textContent = 'Uploading...';
+            try{
+                const res = await fetch('/admin/upload-music', { method: 'POST', body: fd, credentials: 'include' });
+                const data = await res.json();
+                out.textContent = JSON.stringify(data);
+                if (data && data.filename) {
+                    // populate play field
+                    const el = document.getElementById('music-url');
+                    if (el) el.value = '/music/' + data.filename;
+                    renderMusicList();
+                }
+            }catch(e){ out.textContent = 'Upload failed'; console.warn(e); }
         }
 
         // Initialize settings UI on load
