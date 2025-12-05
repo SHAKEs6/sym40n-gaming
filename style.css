@@ -100,6 +100,64 @@ header{
     margin-bottom: 10px;
 }
 
+/* Festive decorations for the logo text */
+.logo-text{
+    position: relative;
+    display: inline-block;
+    color: #edff66;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+}
+
+.logo-text:before{
+    /* Santa hat emoji positioned over the first letter */
+    content: "🎅";
+    position: absolute;
+    left: -18px;
+    top: -44px;
+    font-size: 48px;
+    transform: rotate(-18deg);
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));
+}
+
+.logo-text:after{
+    /* Small twinkling snow/star on the right */
+    content: "❄️";
+    position: absolute;
+    right: -18px;
+    top: -8px;
+    font-size: 28px;
+    animation: floaty 3s ease-in-out infinite, twinkle 1.6s linear infinite;
+}
+
+@keyframes floaty{
+    0%{ transform: translateY(0) rotate(0deg); }
+    50%{ transform: translateY(-6px) rotate(8deg); }
+    100%{ transform: translateY(0) rotate(0deg); }
+}
+
+@keyframes twinkle{
+    0%{ opacity: 0.6; transform: scale(0.9); }
+    50%{ opacity: 1; transform: scale(1.05); }
+    100%{ opacity: 0.6; transform: scale(0.9); }
+}
+
+/* Optional subtle falling-snow effect using a translucent overlay */
+.snow-overlay{
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    background-image: radial-gradient(rgba(255,255,255,0.85) 1px, transparent 2px);
+    background-size: 8px 8px;
+    opacity: 0.04;
+    animation: snowmove 12s linear infinite;
+}
+
+@keyframes snowmove{
+    from{ background-position: 0 0; }
+    to{ background-position: 1000px 1000px; }
+}
+
 .hero-info p{
     color: white;
     max-width: 210px;
