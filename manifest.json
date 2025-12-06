@@ -1,0 +1,92 @@
+{
+  "name": "Sym40n Gaming",
+  "short_name": "Sym40n",
+  "description": "Enter the Metagame Layer • Unleash the Play Economy",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#000000",
+  "theme_color": "#edff66",
+  "icons": [
+    {
+      "src": "img/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "img/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "img/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["games"],
+  "screenshots": [
+    {
+      "src": "img/logo.png",
+      "sizes": "540x720",
+      "type": "image/png"
+    },
+    {
+      "src": "img/logo.png",
+      "sizes": "540x720",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Home",
+      "short_name": "Home",
+      "description": "Open Sym40n Gaming Home",
+      "url": "/index.html",
+      "icons": [
+        {
+          "src": "img/logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Features",
+      "short_name": "Features",
+      "description": "View Sym40n Features",
+      "url": "/features.html",
+      "icons": [
+        {
+          "src": "img/logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Games",
+      "short_name": "Games",
+      "description": "Play Games",
+      "url": "/games.html",
+      "icons": [
+        {
+          "src": "img/logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}

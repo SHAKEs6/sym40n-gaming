@@ -9,7 +9,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
 
-    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">  
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#edff66">
+    <meta name="description" content="Enter the Metagame Layer • Unleash the Play Economy">
+    <link rel="icon" type="image/png" href="img/logo.png">
+    <link rel="apple-touch-icon" href="img/logo.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Sym40n">
 </head>
 <body>
     <div class="container">
@@ -260,5 +270,23 @@
 
     <!-- Scripts -->
     <script src="app.js"></script>
-    <script src="/socket.io/socket.io.js"></script>    
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then((reg) => {
+                        console.log('✓ Service Worker registered:', reg);
+                    })
+                    .catch((err) => {
+                        console.log('Service Worker registration failed:', err);
+                    });
+            });
+        }
+    </script>
+
+</body>
 </html>
+
