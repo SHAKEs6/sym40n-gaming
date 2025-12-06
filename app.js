@@ -34,9 +34,16 @@ const MusicManager = {
             // Fetch music files from server
             await this.loadTracks();
             
-            // Restore shuffle mode from localStorage
-            const savedShuffleMode = localStorage.getItem('shuffleMode') === 'true';
-            this.shuffleMode = savedShuffleMode;
+            // Auto-enable shuffle mode by default (unless explicitly disabled)
+            const savedShuffleMode = localStorage.getItem('shuffleMode');
+            if (savedShuffleMode === null) {
+                // First time - enable shuffle by default
+                this.shuffleMode = true;
+                localStorage.setItem('shuffleMode', 'true');
+            } else {
+                // Restore previous shuffle setting
+                this.shuffleMode = savedShuffleMode === 'true';
+            }
             
             // Restore playback state from sessionStorage
             const savedCurrentIndex = sessionStorage.getItem('currentTrackIndex');
@@ -58,8 +65,12 @@ const MusicManager = {
                 if (savedShuffleIndices) {
                     this.shuffledIndices = JSON.parse(savedShuffleIndices);
                 } else {
+                    // Generate new shuffle order for this session
                     this.generateShuffleOrder();
                 }
+            } else {
+                // Even if shuffle is off, still generate order for potential future use
+                this.generateShuffleOrder();
             }
             
             // Restore music playback
@@ -95,14 +106,11 @@ const MusicManager = {
             return;
         }
         
-        // First time or new session - start playing
-        if (this.shuffleMode) {
-            this.generateShuffleOrder();
-        }
-        
+        // First time or new session - start playing with shuffle enabled
+        // Shuffle is already enabled by default in init()
         this.play(0);
         localStorage.setItem('musicEnabled', 'true');
-        console.log('🎵 Starting music playback');
+        console.log('🎵 Starting music playback (Shuffle Auto-Enabled)');
     },
 
     // Generate shuffle order
