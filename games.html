@@ -333,19 +333,30 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <div class="head-left">
-                <img src="img/logo.png" alt="logo">
-                <button><a href="features.html" style="text-decoration: none; color: black;">Products</a></button>
+        <!-- Navigation Header -->
+        <header class="header">
+            <div class="nav-left">
+                <img src="img/logo.png" alt="logo" class="logo">
+                <a href="features.html" class="nav-btn">Products</a>
             </div>
 
-            <div class="head-right">
-                <p><a href="index.html">HOME</a></p>
-                <p><a href="features.html">FEATURES</a></p>
-                <p><a href="features.html#about">ABOUT</a></p>
-                <p><a href="#">GAMES</a></p>
-                <p><a href="features.html#contact">CONTACT</a></p>
-                <p><a href="login.html" onclick="logout(event)">LOGOUT</a></p>
+            <nav class="nav-right">
+                <a href="index.html">HOME</a>
+                <a href="features.html">FEATURES</a>
+                <a href="features.html#about">ABOUT</a>
+                <a href="games.html">GAMES</a>
+                <a href="features.html#contact">CONTACT</a>
+                <a href="login.html" class="login-link">LOGIN</a>
+            </nav>
+
+            <!-- Music Control Widget -->
+            <div class="music-control">
+                <button id="music-toggle" class="music-btn" title="Toggle Music">
+                    <i class='bx bx-music'></i>
+                </button>
+                <div class="volume-control">
+                    <input type="range" id="volume-slider" min="0" max="100" value="50">
+                </div>
             </div>
         </header>
 
@@ -767,3 +778,12 @@
             }
         });
     </script>
+
+    <!-- Audio Element for Background Music -->
+    <audio id="bg-music" preload="auto" crossorigin="anonymous" type="audio/mpeg"></audio>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</body>
+</html>

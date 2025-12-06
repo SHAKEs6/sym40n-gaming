@@ -204,6 +204,33 @@
     </style>
 </head>
 <body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <div class="nav-left">
+            <img src="img/logo.png" alt="logo" class="logo">
+            <a href="features.html" class="nav-btn">Products</a>
+        </div>
+
+        <nav class="nav-right">
+            <a href="index.html">HOME</a>
+            <a href="features.html">FEATURES</a>
+            <a href="features.html#about">ABOUT</a>
+            <a href="games.html">GAMES</a>
+            <a href="features.html#contact">CONTACT</a>
+            <a href="login.html" class="login-link">LOGIN</a>
+        </nav>
+
+        <!-- Music Control Widget -->
+        <div class="music-control">
+            <button id="music-toggle" class="music-btn" title="Toggle Music">
+                <i class='bx bx-music'></i>
+            </button>
+            <div class="volume-control">
+                <input type="range" id="volume-slider" min="0" max="100" value="50">
+            </div>
+        </div>
+    </header>
+
     <div class="signup-container">
         <div class="signup-box">
             <div class="back-link">
@@ -446,6 +473,12 @@
             }
         });
     </script>
+    
+    <!-- Audio Element for Background Music -->
+    <audio id="bg-music" preload="auto" crossorigin="anonymous" type="audio/mpeg"></audio>
+
+    <!-- Scripts -->
     <script src="app.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
 </body>
 </html>

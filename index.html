@@ -3,263 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Gaming Website</title>
+    <title>SYM40N - Gaming Platform</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">  
 </head>
 <body>
     <div class="container">
-        <header>
-            <div class="head-left">
-                <img src="img/logo.png" alt="logo">
-                <button><a href="features.html" style="text-decoration: none; color: black;">Products</a></button>
+        <!-- Navigation Header -->
+        <header class="header">
+            <div class="nav-left">
+                <img src="img/logo.png" alt="logo" class="logo">
+                <a href="features.html" class="nav-btn">Products</a>
             </div>
 
-            <div class="head-right">
-                <p><a href="#">HOME</a></p>
-                <p><a href="features.html">FEATURES</a></p>
-                <p><a href="features.html#about">ABOUT</a></p>
-                <p><a href="games.html">GAMES</a></p>
-                <p><a href="features.html#contact">CONTACT</a></p>
-                <p><a href="login.html">LOGIN</a></p>
+            <nav class="nav-right">
+                <a href="#home">HOME</a>
+                <a href="features.html">FEATURES</a>
+                <a href="features.html#about">ABOUT</a>
+                <a href="games.html">GAMES</a>
+                <a href="features.html#contact">CONTACT</a>
+                <a href="login.html" class="login-link">LOGIN</a>
+            </nav>
+
+            <!-- Music Control Widget -->
+            <div class="music-control">
+                <button id="music-toggle" class="music-btn" title="Toggle Music">
+                    <i class='bx bx-music'></i>
+                </button>
+                <div class="volume-control">
+                    <input type="range" id="volume-slider" min="0" max="100" value="50">
+                </div>
             </div>
         </header>
 
-        <section class="hero-section">
-            <div class="hero-vid">
-                <video loop autoplay muted plays-inline class="hero-video">
+        <!-- Hero Section with Video Background -->
+        <section id="home" class="hero-section">
+            <div class="hero-container">
+                <video id="hero-video" class="hero-video" autoplay muted loop playsinline>
                     <source src="videos/hero-1.mp4" type="video/mp4">
                 </video>
 
-                    <!-- Seasonal snow overlay (visible only when body has .seasonal-on) -->
-                    <div id="snow-overlay" class="snow-overlay" aria-hidden="true"></div>
+                <div class="hero-overlay"></div>
+                <div class="snow-overlay" id="snow-overlay"></div>
 
-                <div class="hero-info">
-                    <h1 class="logo-text">SHAKESv</h1>
-                    <p>Enter the metagame Layer Unleash the Play Economy</p>
-                    <button>Watch Trailer</button>
+                <div class="hero-content">
+                    <h1 class="hero-title">SYM40N</h1>
+                    <p class="hero-subtitle">Enter the Metagame Layer • Unleash the Play Economy</p>
+                    <button class="hero-btn" onclick="scrollToSection('features')">Watch Trailer</button>
                 </div>
                 
-                <h1 class="gaming-text">Gaming</h1>
-                <div class="next-btn">
-                    NEXT
-                </div>
+                <h2 class="gaming-text">Gaming</h2>
+                <button class="next-btn" id="next-video-btn">NEXT</button>
             </div>
         </section>
 
-        <section class="footer">
-            <p>©SHAKES 2025. All rights reserved</p>
-            <ul>
-                <li><a class="social-youtube" data-default="https://www.youtube.com/" href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer"><i class='bx bxl-youtube'></i> </a></li>
-                <li><a class="social-google" data-default="https://www.google.com/" href="https://www.google.com/" target="_blank" rel="noopener noreferrer"><i class='bx bxl-google'></i> </a></li>
-                <li><a class="social-github" data-default="https://github.com/SHAKEs6/sym40n-gaming" href="https://github.com/SHAKEs6/sym40n-gaming" target="_blank" rel="noopener noreferrer"><i class='bx bxl-github'></i> </a></li>
-                <li><a class="social-twitter" data-default="https://twitter.com/" href="https://twitter.com/" target="_blank" rel="noopener noreferrer"><i class='bx bxl-twitter'></i> </a></li>
+        <!-- Main Content Sections -->
+        <main id="content" class="main-content"></main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; SHAKES 2025. All rights reserved</p>
+            <ul class="social-links">
+                <li><a href="https://www.youtube.com/" target="_blank" title="YouTube"><i class='bx bxl-youtube'></i></a></li>
+                <li><a href="https://www.google.com/" target="_blank" title="Google"><i class='bx bxl-google'></i></a></li>
+                <li><a href="https://github.com/SHAKEs6/sym40n-gaming" target="_blank" title="GitHub"><i class='bx bxl-github'></i></a></li>
+                <li><a href="https://twitter.com/" target="_blank" title="Twitter"><i class='bx bxl-twitter'></i></a></li>
             </ul>
-            <p>Privacy Policy</p>
-        </section>
+            <p class="privacy-link"><a href="#">Privacy Policy</a></p>
+        </footer>
     </div>
 
-    <!-- Hidden Cincopa music player (auto-plays in background) -->
-    <div id="cincopa_player" style="display:none;"></div>
+    <!-- Audio Element for Background Music -->
+    <audio id="bg-music" preload="auto" crossorigin="anonymous" type="audio/mpeg"></audio>
 
+    <!-- Scripts -->
     <script src="app.js"></script>
     <script src="/socket.io/socket.io.js"></script>
-        <script>
-            (function(){
-                const socket = io();
-                let currentAudio = null;
-                let audioUnlocked = false;
-                let pendingMusicUrl = null;
-                let audioContext = null;
 
-                // create enable-sound UI: large modal on first visit, floating button afterwards
-                (function createEnableSoundUI(){
-                    const seenKey = 'audioUnlockSeen';
-                    const seen = localStorage.getItem(seenKey);
-
-                    async function unlockAudio(triggerEl){
-                        try{
-                            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                            const buffer = audioContext.createBuffer(1, 1, 22050);
-                            const src = audioContext.createBufferSource();
-                            src.buffer = buffer;
-                            src.connect(audioContext.destination);
-                            src.start(0);
-                            await audioContext.resume();
-                            audioUnlocked = true;
-                            // remove UI
-                            if (triggerEl) triggerEl.remove();
-                            const modal = document.getElementById('enable-sound-modal'); if (modal) modal.remove();
-                            const float = document.getElementById('enable-sound-btn'); if (float) float.remove();
-                            if (pendingMusicUrl) { playMusic(pendingMusicUrl); pendingMusicUrl = null; }
-                            localStorage.setItem(seenKey, '1');
-                        } catch (e) { console.warn('unlock failed', e); }
-                    }
-
-                    function createFloating(){
-                        // small floating button
-                        const btn = document.createElement('button');
-                        btn.id = 'enable-sound-btn';
-                        btn.textContent = 'Enable Sound';
-                        Object.assign(btn.style, { position:'fixed', right:'20px', bottom:'20px', zIndex:99999, padding:'10px 12px', background:'#1db954', color:'#fff', border:'none', borderRadius:'8px', cursor:'pointer' });
-                        btn.onclick = () => unlockAudio(btn);
-                        document.body.appendChild(btn);
-                    }
-
-                    function createModal(){
-                        const modal = document.createElement('div');
-                        modal.id = 'enable-sound-modal';
-                        Object.assign(modal.style, { position:'fixed', left:0, top:0, right:0, bottom:0, background:'rgba(0,0,0,0.85)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100000 });
-                        modal.innerHTML = `
-                            <div style="max-width:520px;padding:30px;text-align:center;">
-                                <h2 style="color:#edff66;margin-bottom:8px;">Enable Sound</h2>
-                                <p style="color:#ddd;margin-bottom:20px;">To hear site-wide music and announcements, please enable sound for this site.</p>
-                                <div style="display:flex;gap:12px;justify-content:center;">
-                                    <button id="enable-sound-modal-btn" style="padding:14px 20px;background:#1db954;border:none;border-radius:8px;color:#fff;font-weight:700;">Enable Sound</button>
-                                    <button id="enable-sound-modal-skip" style="padding:14px 20px;background:transparent;border:1px solid #555;border-radius:8px;color:#fff;">Skip</button>
-                                </div>
-                            </div>`;
-                        document.body.appendChild(modal);
-                        document.getElementById('enable-sound-modal-btn').onclick = function(){ unlockAudio(modal); };
-                        document.getElementById('enable-sound-modal-skip').onclick = function(){
-                            localStorage.setItem(seenKey, '1');
-                            modal.remove();
-                            createFloating();
-                        };
-                    }
-
-                    if (!seen) {
-                        // first visit: show modal
-                        createModal();
-                    } else {
-                        // subsequent visits: show floating button
-                        createFloating();
-                    }
-                })();
-
-                socket.on('connect', () => {
-                    console.log('connected to server');
-                });
-
-                socket.on('config', cfg => {
-                    console.log('received config:', cfg);
-                    if (cfg && cfg.decoration) applyDecoration(cfg.decoration);
-                    if (cfg && cfg.currentMusic) console.log('current music from config:', cfg.currentMusic);
-                });
-
-                socket.on('decoration', dec => {
-                    console.log('decoration event:', dec);
-                    applyDecoration(dec);
-                });
-                socket.on('notification', payload => {
-                    console.log('notification event:', payload);
-                    showNotification(payload);
-                });
-                socket.on('play-music', data => {
-                    console.log('play-music event received:', data);
-                    if (data && data.url) playMusic(data.url);
-                });
-
-                function applyDecoration(decoration){
-                    if (!decoration){ document.body.classList.remove('seasonal-on'); document.body.removeAttribute('data-decoration'); return; }
-                    document.body.setAttribute('data-decoration', decoration);
-                    if (decoration === 'snow' || decoration === 'winter' || decoration === 'christmas'){
-                        document.body.classList.add('seasonal-on');
-                        const overlay = document.getElementById('snow-overlay'); if (overlay) overlay.style.display = '';
-                    } else {
-                        document.body.classList.remove('seasonal-on');
-                        const overlay = document.getElementById('snow-overlay'); if (overlay) overlay.style.display = 'none';
-                    }
-                }
-
-                function showNotification({title, message} = {}){
-                    const el = document.createElement('div');
-                    el.className = 'site-notification';
-                    el.innerHTML = '<strong>'+escapeHtml(title||'')+'</strong><div>'+escapeHtml(message||'')+'</div>';
-                    Object.assign(el.style, { position:'fixed', right:'20px', top:'20px', background:'#111', color:'#fff', padding:'12px', borderRadius:'8px', zIndex:99999, boxShadow:'0 4px 16px rgba(0,0,0,0.4)' });
-                    document.body.appendChild(el);
-                    setTimeout(()=> el.remove(), 8000);
-                }
-
-                function playMusic(url){
-                    try{
-                        console.log('playMusic called with url:', url, 'audioUnlocked:', audioUnlocked);
-                        
-                        if (!audioUnlocked){
-                            // queue and prompt user to enable sound
-                            pendingMusicUrl = url;
-                            const btn = document.getElementById('enable-sound-btn');
-                            if (btn) {
-                                // flash the button to draw attention
-                                btn.style.animation = 'pulse 1s infinite';
-                                setTimeout(()=> btn.style.animation = '', 6000);
-                            } else {
-                                // fallback: create a temporary notice
-                                showNotification({ title: 'Enable Sound', message: 'Click "Enable Sound" to allow audio playback' });
-                            }
-                            return;
-                        }
-
-                        // stop any existing audio
-                        if (currentAudio){ currentAudio.pause(); currentAudio = null; }
-                        
-                        // create and play audio element
-                        currentAudio = new Audio(url);
-                        currentAudio.crossOrigin = 'anonymous';
-                        currentAudio.autoplay = true;
-                        currentAudio.loop = true;
-                        currentAudio.volume = 0.4;
-                        console.log('Audio element created, attempting to play:', url);
-                        currentAudio.play().then(()=> {
-                            console.log('Music playing successfully');
-                        }).catch(e=> {
-                            console.warn('Playback failed:', e);
-                            showNotification({ title: 'Music Error', message: 'Could not play music' });
-                        });
-                    } catch(e){ console.error('playMusic error:', e); }
-                }
-
-                function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-            })();
-        </script>
-        <script>
-            // Web Push subscription helper for visitors
-            (function(){
-                async function enablePush(){
-                    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return alert('Push not supported in this browser');
-                    try{
-                        const reg = await navigator.serviceWorker.register('/sw.js');
-                        const res = await fetch('/vapidPublicKey');
-                        if (!res.ok) return alert('Failed fetching VAPID key');
-                        const { publicKey } = await res.json();
-                        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
-                        await fetch('/subscribe', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(sub) });
-                        alert('Subscribed to push notifications');
-                    }catch(e){ console.error(e); alert('Failed to subscribe: '+ (e.message||e)); }
-                }
-
-                function urlBase64ToUint8Array(base64String) {
-                    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-                    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-                    const rawData = window.atob(base64);
-                    const outputArray = new Uint8Array(rawData.length);
-                    for (let i = 0; i < rawData.length; ++i) {
-                        outputArray[i] = rawData.charCodeAt(i);
-                    }
-                    return outputArray;
-                }
-
-                // add floating button
-                const btn = document.createElement('button');
-                btn.textContent = 'Enable Push';
-                Object.assign(btn.style, { position:'fixed', right:'20px', bottom:'80px', zIndex:99999, padding:'10px 12px', background:'#edff66', border:'none', borderRadius:'8px', cursor:'pointer' });
-                btn.onclick = enablePush;
-                document.body.appendChild(btn);
-            })();
-        </script>
-    </body>
+</body>
 </html>

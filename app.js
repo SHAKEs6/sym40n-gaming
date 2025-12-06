@@ -1,6 +1,248 @@
 // ============================================
-// SYM40N GAMING - DATA PERSISTENCE & UTILITIES
+// SYM40N GAMING - FRONTEND APPLICATION
 // ============================================
+
+// ==================
+// Music System (Non-Static)
+// ==================
+
+const MusicManager = {
+    tracks: [],
+    currentIndex: 0,
+    isPlaying: false,
+    audioElement: null,
+    apiUrl: 'http://localhost:3000',
+
+    // Initialize music system
+    init: async function() {
+        try {
+            this.audioElement = document.getElementById('bg-music');
+            if (!this.audioElement) {
+                this.audioElement = document.createElement('audio');
+                this.audioElement.id = 'bg-music';
+                this.audioElement.crossOrigin = 'anonymous';
+                this.audioElement.preload = 'auto';
+                document.body.appendChild(this.audioElement);
+            }
+
+            // Fetch music files from server
+            await this.loadTracks();
+            this.setupUI();
+            this.attachEventListeners();
+            this.connectWebSocket();
+            
+            // Auto-start music after a short delay
+            setTimeout(() => {
+                this.autoStartMusic();
+            }, 1000);
+        } catch (error) {
+            console.error('Music Manager Init Error:', error);
+            this.loadLocalFallback();
+            setTimeout(() => this.autoStartMusic(), 1000);
+        }
+    },
+
+    // Auto-start music playback
+    autoStartMusic: function() {
+        if (!this.tracks.length) {
+            console.warn('No tracks available to play');
+            return;
+        }
+        
+        // Check if user has previously enabled music
+        const musicEnabled = localStorage.getItem('musicEnabled') !== 'false';
+        
+        if (musicEnabled) {
+            this.play(0);
+            console.log('🎵 Auto-playing background music');
+        } else {
+            console.log('Music disabled by user preference');
+        }
+    },
+
+    // Load tracks from backend API
+    loadTracks: async function() {
+        try {
+            const response = await fetch(`${this.apiUrl}/api/music-files`);
+            if (!response.ok) throw new Error('Failed to fetch music files');
+            
+            const data = await response.json();
+            if (data.files && Array.isArray(data.files)) {
+                this.tracks = data.files.map((filename, idx) => ({
+                    id: idx,
+                    title: filename.replace(/\.[^/.]+$/, ''),
+                    filename: filename,
+                    url: `/music/${filename}`
+                }));
+                console.log(`Loaded ${this.tracks.length} music tracks`);
+            }
+        } catch (error) {
+            console.warn('Could not load music from server:', error);
+            this.loadLocalFallback();
+        }
+    },
+
+    // Fallback to hardcoded local music
+    loadLocalFallback: function() {
+        this.tracks = [];
+        for (let i = 0; i <= 20; i++) {
+            const filename = i === 0 ? 'polo.mp3' : `polo${i}.mp3`;
+            this.tracks.push({
+                id: i,
+                title: `Track ${i === 0 ? '' : i}`.trim(),
+                filename: filename,
+                url: `/music/${filename}`
+            });
+        }
+        console.log('Using fallback music tracks');
+    },
+
+    // Setup music control UI
+    setupUI: function() {
+        const musicBtn = document.getElementById('music-toggle');
+        const volumeSlider = document.getElementById('volume-slider');
+
+        if (musicBtn) {
+            musicBtn.addEventListener('click', () => this.togglePlayPause());
+        }
+
+        if (volumeSlider && this.audioElement) {
+            volumeSlider.addEventListener('change', (e) => {
+                this.audioElement.volume = e.target.value / 100;
+                localStorage.setItem('musicVolume', e.target.value);
+            });
+            // Restore saved volume
+            const savedVolume = localStorage.getItem('musicVolume') || 50;
+            volumeSlider.value = savedVolume;
+            this.audioElement.volume = savedVolume / 100;
+        }
+    },
+
+    // Attach audio event listeners
+    attachEventListeners: function() {
+        if (!this.audioElement) return;
+
+        this.audioElement.addEventListener('play', () => {
+            this.isPlaying = true;
+            this.updateButtonState();
+        });
+
+        this.audioElement.addEventListener('pause', () => {
+            this.isPlaying = false;
+            this.updateButtonState();
+        });
+
+        this.audioElement.addEventListener('ended', () => {
+            this.playNext();
+        });
+
+        // Handle autoplay restrictions
+        this.audioElement.addEventListener('error', (e) => {
+            console.error('Audio error:', e);
+            this.showNotification('Audio playback error', 'error');
+        });
+    },
+
+    // WebSocket connection for real-time music control
+    connectWebSocket: function() {
+        try {
+            if (typeof io === 'undefined') {
+                console.warn('Socket.io not available');
+                return;
+            }
+
+            const socket = io(this.apiUrl);
+
+            socket.on('connect', () => {
+                console.log('Connected to backend via WebSocket');
+            });
+
+            socket.on('play-music', (data) => {
+                console.log('Received play command:', data);
+                if (data.url) {
+                    this.audioElement.src = data.url;
+                    this.audioElement.play().catch(err => {
+                        console.log('Autoplay blocked:', err);
+                        this.showNotification('Click to enable audio playback', 'info');
+                    });
+                }
+            });
+
+            socket.on('config', (config) => {
+                console.log('Received config:', config);
+            });
+
+            socket.on('disconnect', () => {
+                console.log('Disconnected from backend');
+            });
+        } catch (error) {
+            console.warn('WebSocket connection failed:', error);
+        }
+    },
+
+    // Play specific track
+    play: function(index) {
+        if (!this.tracks.length) return;
+        
+        this.currentIndex = index % this.tracks.length;
+        const track = this.tracks[this.currentIndex];
+        
+        if (this.audioElement) {
+            this.audioElement.src = track.url;
+            this.audioElement.load();
+            this.audioElement.play().catch(err => {
+                console.log('Autoplay blocked:', err);
+                this.showNotification('Enable audio to play music', 'info');
+            });
+        }
+    },
+
+    // Play next track
+    playNext: function() {
+        if (!this.tracks.length) return;
+        this.play(this.currentIndex + 1);
+    },
+
+    // Play previous track
+    playPrev: function() {
+        if (!this.tracks.length) return;
+        this.play(this.currentIndex - 1);
+    },
+
+    // Toggle play/pause and save preference
+    togglePlayPause: function() {
+        if (!this.audioElement) return;
+
+        if (this.audioElement.src === '') {
+            this.play(0); // Start playing first track if none loaded
+        } else if (this.audioElement.paused) {
+            this.audioElement.play().catch(err => {
+                console.log('Play action blocked:', err);
+                this.showNotification('Click anywhere to enable audio', 'info');
+            });
+        } else {
+            this.audioElement.pause();
+        }
+    },
+
+    // Update UI button state
+    updateButtonState: function() {
+        const musicBtn = document.getElementById('music-toggle');
+        if (musicBtn) {
+            if (this.isPlaying) {
+                musicBtn.classList.add('playing');
+            } else {
+                musicBtn.classList.remove('playing');
+            }
+        }
+    },
+
+    // Show notification
+    showNotification: function(message, type = 'info') {
+        // Just log for now, will be replaced by global showNotification
+        console.log(`[${type}] ${message}`);
+    }
+};
 
 // ==================
 // Data Management
@@ -29,19 +271,6 @@ const DataManager = {
         localStorage.setItem('currentUser', email);
         localStorage.setItem('currentUserName', userName);
         localStorage.setItem('sessionStart', new Date().toISOString());
-        // Add to active sessions
-        try {
-            let sessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
-            sessions[email] = {
-                email: email,
-                userName: userName,
-                sessionStart: new Date().toISOString(),
-                lastActive: new Date().toISOString()
-            };
-            localStorage.setItem('activeSessions', JSON.stringify(sessions));
-        } catch (e) {
-            console.warn('Failed to save active session', e);
-        }
         return true;
     },
 
@@ -57,41 +286,11 @@ const DataManager = {
         localStorage.removeItem('currentUser');
         localStorage.removeItem('currentUserName');
         localStorage.removeItem('sessionStart');
-        // Remove from active sessions
-        try {
-            const email = localStorage.getItem('currentUser');
-            let sessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
-            if (email && sessions[email]) {
-                delete sessions[email];
-                localStorage.setItem('activeSessions', JSON.stringify(sessions));
-            }
-        } catch (e) {
-            console.warn('Failed to remove active session', e);
-        }
         return true;
     },
 
     isLoggedIn: function() {
         return !!localStorage.getItem('currentUser');
-    },
-
-    // Download Management
-    saveDownload: function(gameName, downloadData) {
-        let downloads = JSON.parse(localStorage.getItem('gameDownloads') || '{}');
-        downloads[gameName] = {
-            ...downloadData,
-            downloadedAt: new Date().toISOString()
-        };
-        localStorage.setItem('gameDownloads', JSON.stringify(downloads));
-        return true;
-    },
-
-    getDownloads: function() {
-        return JSON.parse(localStorage.getItem('gameDownloads') || '{}');
-    },
-
-    getDownloadCount: function() {
-        return Object.keys(this.getDownloads()).length;
     },
 
     // Contact Messages
@@ -112,496 +311,6 @@ const DataManager = {
     }
 };
 
-// Session helpers
-DataManager.getActiveSessions = function() {
-    return JSON.parse(localStorage.getItem('activeSessions') || '{}');
-};
-
-DataManager.getActiveSessionCount = function() {
-    return Object.keys(this.getActiveSessions()).length;
-};
-
-DataManager.touchSession = function(email) {
-    try {
-        let sessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
-        if (sessions[email]) {
-            sessions[email].lastActive = new Date().toISOString();
-            localStorage.setItem('activeSessions', JSON.stringify(sessions));
-            return true;
-        }
-    } catch (e) { console.warn(e); }
-    return false;
-};
-
-// Notifications
-DataManager.addNotification = function(message, type = 'info') {
-    try {
-        let notes = JSON.parse(localStorage.getItem('notifications') || '[]');
-        const note = {
-            id: 'n_' + Date.now(),
-            message: message,
-            type: type,
-            createdAt: new Date().toISOString(),
-            read: false
-        };
-        notes.unshift(note);
-        localStorage.setItem('notifications', JSON.stringify(notes));
-        return note;
-    } catch (e) { console.warn('addNotification failed', e); return null; }
-};
-
-DataManager.getNotifications = function() {
-    return JSON.parse(localStorage.getItem('notifications') || '[]');
-};
-
-DataManager.markNotificationRead = function(id) {
-    try {
-        let notes = JSON.parse(localStorage.getItem('notifications') || '[]');
-        notes = notes.map(n => n.id === id ? {...n, read: true} : n);
-        localStorage.setItem('notifications', JSON.stringify(notes));
-        return true;
-    } catch (e) { console.warn(e); return false; }
-};
-
-// Announcements
-DataManager.setAnnouncement = function(message) {
-    try {
-        const note = {
-            id: 'a_' + Date.now(),
-            message: message,
-            createdAt: new Date().toISOString()
-        };
-        localStorage.setItem('siteAnnouncement', JSON.stringify(note));
-        // also add to notifications for admin history
-        this.addNotification('Announcement sent: ' + (message.length > 60 ? message.slice(0,60) + '…' : message), 'info');
-        return note;
-    } catch (e) { console.warn(e); return null; }
-};
-
-DataManager.getAnnouncement = function() {
-    return JSON.parse(localStorage.getItem('siteAnnouncement') || 'null');
-};
-
-// Music management
-DataManager.addMusic = function(title, url) {
-    try {
-        let mus = JSON.parse(localStorage.getItem('siteMusic') || '[]');
-        const entry = { id: 'm_' + Date.now(), title: title, url: url, addedAt: new Date().toISOString() };
-        mus.push(entry);
-        localStorage.setItem('siteMusic', JSON.stringify(mus));
-        this.addNotification('New music added: ' + title, 'info');
-        return entry;
-    } catch (e) { console.warn(e); return null; }
-};
-
-DataManager.getMusic = function() {
-    return JSON.parse(localStorage.getItem('siteMusic') || '[]');
-};
-
-DataManager.removeMusic = function(id) {
-    try {
-        let mus = JSON.parse(localStorage.getItem('siteMusic') || '[]');
-        mus = mus.filter(m => m.id !== id);
-        localStorage.setItem('siteMusic', JSON.stringify(mus));
-        this.addNotification('Music removed', 'info');
-        return true;
-    } catch (e) { console.warn(e); return false; }
-};
-
-// Show announcement to users on page load if unseen
-document.addEventListener('DOMContentLoaded', function() {
-    try {
-        const ann = DataManager.getAnnouncement();
-        if (!ann) return;
-        const lastSeen = localStorage.getItem('lastSeenAnnouncement');
-        if (lastSeen !== ann.id) {
-            // show persistent banner and a notification
-            showAnnouncementBanner(ann);
-            showNotification('Announcement: ' + ann.message, 'info');
-            // mark as seen for this client
-            localStorage.setItem('lastSeenAnnouncement', ann.id);
-        } else {
-            // still render banner (optional) if you want
-            renderAnnouncementBanner(ann);
-        }
-    } catch (e) { console.warn('announcement check failed', e); }
-});
-
-function renderAnnouncementBanner(ann) {
-    try {
-        if (!ann) return;
-        let banner = document.getElementById('site-announcement-banner');
-        if (!banner) {
-            banner = document.createElement('div');
-            banner.id = 'site-announcement-banner';
-            banner.style.cssText = 'position:fixed; top:60px; left:0; right:0; background:linear-gradient(90deg,#222,#111); color:#edff66; padding:12px 18px; text-align:center; z-index:9999; font-weight:700;';
-            document.body.appendChild(banner);
-        }
-        banner.textContent = ann.message;
-    } catch (e) { console.warn(e); }
-}
-
-function showAnnouncementBanner(ann) {
-    renderAnnouncementBanner(ann);
-    // Auto-hide after 20s
-    setTimeout(() => {
-        const b = document.getElementById('site-announcement-banner');
-        if (b) b.remove();
-    }, 20000);
-}
-
-// Music player UI injected on every page
-let broadcastPollerID = null;
-function initMusicPlayer() {
-    try {
-        const musicList = DataManager.getMusic();
-        if (!musicList || musicList.length === 0) return;
-
-        // Create player container
-        let player = document.getElementById('site-music-player');
-        if (!player) {
-            player = document.createElement('div');
-            player.id = 'site-music-player';
-            player.style.cssText = 'position:fixed; bottom:16px; right:16px; background:rgba(0,0,0,0.7); color:white; padding:8px 12px; border-radius:10px; z-index:9999; display:flex; gap:8px; align-items:center;';
-            document.body.appendChild(player);
-        }
-
-        // clear existing contents to avoid duplicating controls when re-initializing
-        player.innerHTML = '';
-
-        // create or reuse audio element inside the player
-        let audio = document.getElementById('site-audio');
-        if (!audio) {
-            audio = document.createElement('audio');
-            audio.id = 'site-audio';
-        }
-        audio.id = 'site-audio';
-        // show native controls as fallback and for accessibility
-        audio.controls = true;
-        audio.style.display = 'inline-block';
-        player.appendChild(audio);
-
-        const titleEl = document.createElement('div');
-        titleEl.id = 'music-title';
-        titleEl.style.maxWidth = '220px';
-        titleEl.style.overflow = 'hidden';
-        titleEl.style.textOverflow = 'ellipsis';
-        player.appendChild(titleEl);
-
-        const prevBtn = document.createElement('button'); prevBtn.textContent = '⏮';
-        const playBtn = document.createElement('button'); playBtn.textContent = '⏯';
-        const nextBtn = document.createElement('button'); nextBtn.textContent = '⏭';
-        [prevBtn, playBtn, nextBtn].forEach(b => { b.style.background='transparent'; b.style.border='none'; b.style.color='white'; b.style.cursor='pointer'; player.appendChild(b); });
-
-        let idx = Number(sessionStorage.getItem('site-music-idx') || 0);
-        function loadTrack(i) {
-            if (!musicList || musicList.length === 0) return;
-            idx = ((i % musicList.length) + musicList.length) % musicList.length;
-            const t = musicList[idx];
-            audio.src = t.url;
-            titleEl.textContent = t.title;
-            sessionStorage.setItem('site-music-idx', String(idx));
-        }
-
-        prevBtn.onclick = () => { loadTrack(idx-1); audio.play().catch(()=>{}); };
-        nextBtn.onclick = () => { loadTrack(idx+1); audio.play().catch(()=>{}); };
-        playBtn.onclick = () => { if (audio.paused) audio.play().catch(()=>{}); else audio.pause(); };
-
-        // Update play button UI on audio play/pause
-        audio.addEventListener('play', () => { playBtn.textContent = '⏸'; });
-        audio.addEventListener('pause', () => { playBtn.textContent = '⏯'; });
-
-        audio.onended = () => { loadTrack(idx+1); audio.play().catch(()=>{}); };
-
-        // load track; if consent exists attempt auto-play; otherwise leave loaded
-        loadTrack(idx);
-        if (localStorage.getItem('site-audio-consent') === '1') {
-            audio.play().catch((err) => { console.warn('autoplay failed', err); showNotification('Audio play blocked — tap the player to enable', 'warn'); });
-        }
-
-        // ensure broadcast polling is started when player is present
-        if (!broadcastPollerID) broadcastPollerID = startBroadcastPolling(5000);
-    } catch (e) { console.warn('music player init failed', e); }
-}
-
-// initialize on load (if music exists)
-document.addEventListener('DOMContentLoaded', function() {
-    try { initMusicPlayer(); } catch (e) { console.warn(e); }
-});
-
-// react to changes to siteMusic and play-consent from other tabs/admin actions
-window.addEventListener('storage', function(e) {
-    try {
-        if (e.key === 'siteMusic') {
-            // refresh or create player if tracks were added/removed
-            setTimeout(() => { initMusicPlayer(); }, 150);
-        }
-        if (e.key === 'site-audio-consent' && e.newValue === '1') {
-            // attempt to play immediately if user gave consent
-            const a = document.getElementById('site-audio');
-            if (a) a.play().catch(()=>{});
-        }
-    } catch (err) { console.warn(err); }
-});
-
-// --- Broadcast polling: checks repo broadcast.json for play/pause commands ---
-const BROADCAST_RAW_URL = 'https://raw.githubusercontent.com/SHAKEs6/sym40n-gaming/main/broadcast.json';
-let lastBroadcastTimestamp = sessionStorage.getItem('lastBroadcastTS') || null;
-
-function startBroadcastPolling(intervalMs = 5000) {
-    // require audio element presence
-    const audio = document.getElementById('site-audio');
-    if (!audio) return;
-
-    async function poll() {
-        try {
-            const res = await fetch(BROADCAST_RAW_URL + '?_=' + Date.now(), {cache: 'no-store'});
-            if (!res.ok) return; // no broadcast file yet
-            const txt = await res.text();
-            if (!txt) return;
-            let b;
-            try { b = JSON.parse(txt); } catch (e) { return; }
-            if (!b || !b.timestamp) return;
-            if (b.timestamp === lastBroadcastTimestamp) return; // no change
-            lastBroadcastTimestamp = b.timestamp;
-            sessionStorage.setItem('lastBroadcastTS', lastBroadcastTimestamp);
-            handleBroadcast(b);
-        } catch (e) {
-            // ignore network errors
-            //console.warn('broadcast poll error', e);
-        }
-    }
-
-    // initial poll
-    poll();
-    return setInterval(poll, intervalMs);
-}
-
-function handleBroadcast(b) {
-    try {
-        const audio = document.getElementById('site-audio');
-        if (!audio) return;
-        const consent = localStorage.getItem('site-audio-consent') === '1';
-        if (b.action === 'play' && b.trackUrl) {
-            // set src and attempt play only if user consented
-            audio.src = b.trackUrl;
-            const titleEl = document.getElementById('music-title');
-            if (titleEl) titleEl.textContent = b.title || 'Broadcast Track';
-            if (consent) {
-                audio.play().catch(() => {});
-            } else {
-                // show a small toast prompting user to enable audio
-                showNotification('Live broadcast available — enable audio to listen', 'info');
-            }
-        } else if (b.action === 'pause') {
-            audio.pause && audio.pause();
-        }
-    } catch (e) { console.warn('handleBroadcast error', e); }
-}
-
-// Ensure polling starts once DOM is ready and player exists
-// Ensure consent UI is shown and broadcast polling starts once audio element exists
-document.addEventListener('DOMContentLoaded', function() {
-    // Add small consent UI if not consented yet
-    try {
-        if (!localStorage.getItem('site-audio-consent')) {
-            const consentBar = document.createElement('div');
-            consentBar.id = 'audio-consent-bar';
-            consentBar.style.cssText = 'position:fixed;bottom:80px;right:16px;background:rgba(0,0,0,0.8);color:white;padding:10px;border-radius:8px;z-index:10001;display:flex;gap:8px;align-items:center;';
-            consentBar.innerHTML = '<div style="font-weight:700;">Enable audio playback?</div>';
-            const btn = document.createElement('button'); btn.textContent = 'Enable & Play';
-            btn.style.cssText = 'background:#edff66;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-weight:700;';
-            btn.onclick = () => {
-                localStorage.setItem('site-audio-consent','1');
-                consentBar.remove();
-                // attempt to play current audio if present
-                const a = document.getElementById('site-audio');
-                if (a) { a.play().catch(()=>{}); }
-                showNotification('Audio enabled — broadcasts and player will play', 'success');
-            };
-            const btn2 = document.createElement('button'); btn2.textContent='Close'; btn2.style.cssText='background:transparent;border:1px solid #666;color:white;padding:6px 10px;border-radius:6px;cursor:pointer;'; btn2.onclick=()=>consentBar.remove();
-            consentBar.appendChild(btn); consentBar.appendChild(btn2);
-            document.body.appendChild(consentBar);
-        }
-    } catch(e){}
-
-    // start polling once audio element exists (may have been injected earlier)
-    const check = setInterval(()=>{
-        if (document.getElementById('site-audio')) { clearInterval(check); if (!broadcastPollerID) broadcastPollerID = startBroadcastPolling(5000); }
-    }, 500);
-});
-
-// Seasonal decorations: apply class to body when admin toggles seasonal mode
-function applySeasonalDecor() {
-    try {
-        // If admin hasn't explicitly chosen, enable seasonals automatically in December
-        const explicit = localStorage.getItem('seasonalDecor');
-        let enabled;
-        if (explicit === null || explicit === undefined) {
-            const now = new Date();
-            enabled = (now.getMonth() === 11); // December (0-based months)
-        } else {
-            enabled = explicit === '1';
-        }
-        if (enabled) {
-            document.body.classList.add('seasonal-on');
-            // also add to the root element so CSS matches regardless of where styles are scoped
-            document.documentElement.classList.add('seasonal-on');
-        } else {
-            document.body.classList.remove('seasonal-on');
-            document.documentElement.classList.remove('seasonal-on');
-        }
-    } catch (e) { console.warn('applySeasonalDecor error', e); }
-}
-
-// Apply on load and watch for changes (in case admin toggles in another tab)
-document.addEventListener('DOMContentLoaded', function() { applySeasonalDecor(); });
-window.addEventListener('storage', function(e) {
-    if (e.key === 'seasonalDecor') applySeasonalDecor();
-});
-
-
-// ==================
-// Auto-Login Check
-// ==================
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Auto-check if user is logged in
-    if (DataManager.isLoggedIn()) {
-        const session = DataManager.getSession();
-        console.log('User session active:', session.email);
-    }
-
-    // Track page visit
-    const pageVisit = {
-        page: window.location.pathname,
-        visitedAt: new Date().toISOString()
-    };
-    let visits = JSON.parse(localStorage.getItem('pageVisits') || '[]');
-    visits.push(pageVisit);
-    localStorage.setItem('pageVisits', JSON.stringify(visits));
-});
-
-// Ensure there's a global showAdminLogin fallback (for pages other than login.html)
-if (typeof window.showAdminLogin !== 'function') {
-    window.showAdminLogin = function() {
-        const adminPassword = prompt('Enter Admin Password:');
-        if (adminPassword === 'admin@2025') {
-            localStorage.setItem('adminToken', Date.now());
-            window.location.href = 'admin.html';
-        } else if (adminPassword !== null) {
-            alert('Invalid admin password!');
-        }
-    };
-}
-
-// Mobile/touch admin trigger: detect 3 quick taps anywhere on the screen
-(function setupMobileAdminTrigger() {
-    // Detect triple-tap OR long-press anywhere on the page to open admin prompt on mobile.
-    let tapTimestamps = [];
-    let longPressTimer = null;
-    const TRIPLE_TAP_WINDOW = 1200; // ms - allow slightly slower tapping
-    const LONG_PRESS_MS = 700; // ms - comfortable long-press duration
-
-    function tryOpenAdmin() {
-        try { window.showAdminLogin(); } catch (err) { console.warn('admin login failed', err); }
-    }
-
-    document.addEventListener('touchstart', function(e) {
-        if (window.innerWidth > 1024) return; // only mobile & small tablets
-        // start long-press timer
-        longPressTimer = setTimeout(() => { tryOpenAdmin(); }, LONG_PRESS_MS);
-    }, { passive: true });
-
-    // cancel long-press if touch moves or is canceled (user is scrolling)
-    document.addEventListener('touchmove', function() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } }, { passive: true });
-    document.addEventListener('touchcancel', function() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } }, { passive: true });
-
-    document.addEventListener('touchend', function(e) {
-        if (window.innerWidth > 1024) return;
-        // long-press handled via timer, clear it
-        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-
-        // record tap time
-        const now = Date.now();
-        tapTimestamps.push(now);
-        // keep only last 3 timestamps
-        if (tapTimestamps.length > 3) tapTimestamps.shift();
-        if (tapTimestamps.length === 3 && (tapTimestamps[2] - tapTimestamps[0] <= TRIPLE_TAP_WINDOW)) {
-            // triple tap detected
-            tapTimestamps = [];
-            tryOpenAdmin();
-        }
-        // clear older taps after a short window
-        setTimeout(() => { if (tapTimestamps.length > 0) tapTimestamps = []; }, TRIPLE_TAP_WINDOW + 100);
-    }, { passive: true });
-})();
-
-// Social links: replace footer anchors with configured links from localStorage
-function applySocialLinks() {
-    try {
-        const links = JSON.parse(localStorage.getItem('socialLinks') || '{}');
-        if (!links) return;
-        // mapping of classes to keys
-        const mapping = {
-            'social-youtube': 'youtube',
-            'social-google': 'google',
-            'social-github': 'github',
-            'social-twitter': 'twitter'
-        };
-        Object.keys(mapping).forEach(cls => {
-            const key = mapping[cls];
-            const el = document.querySelector('a.' + cls);
-            if (el) {
-                const url = links[key] || el.getAttribute('data-default') || '#';
-                el.setAttribute('href', url);
-                el.setAttribute('target', '_blank');
-                el.setAttribute('rel', 'noopener noreferrer');
-            }
-        });
-    } catch (e) { console.warn('applySocialLinks error', e); }
-}
-
-document.addEventListener('DOMContentLoaded', applySocialLinks);
-window.addEventListener('storage', function(e) { if (e.key === 'socialLinks') applySocialLinks(); });
-
-// Hero video carousel: cycles through local videos when the NEXT button is clicked
-document.addEventListener('DOMContentLoaded', function() {
-    try {
-        const videoEl = document.querySelector('.hero-video');
-        const nextBtn = document.querySelector('.next-btn');
-        if (!videoEl || !nextBtn) return;
-
-        const movieList = [
-            'videos/hero-1.mp4',
-            'videos/hero-2.mp4',
-            'videos/hero-3.mp4',
-            'videos/hero-4.mp4'
-        ];
-
-        const sourceEl = videoEl.querySelector('source');
-        const currentSrc = (sourceEl && sourceEl.getAttribute('src')) || videoEl.currentSrc || '';
-        const currentFile = currentSrc.split('/').pop();
-        let index = movieList.findIndex(m => m.endsWith(currentFile));
-        if (index === -1) index = 0;
-
-        nextBtn.addEventListener('click', function () {
-            index = (index + 1) % movieList.length;
-            if (sourceEl) {
-                sourceEl.setAttribute('src', movieList[index]);
-            } else {
-                // fallback: replace video src directly
-                videoEl.setAttribute('src', movieList[index]);
-            }
-            // reload video element and attempt play
-            try { videoEl.load(); } catch (e) {}
-            videoEl.play && videoEl.play().catch(() => {});
-        });
-    } catch (err) {
-        console.warn('Hero carousel initialization failed', err);
-    }
-});
-
 // ==================
 // Utility Functions
 // ==================
@@ -616,64 +325,203 @@ function validatePassword(password) {
 }
 
 function showNotification(message, type = 'success') {
-    // Create notification element
-    // Persist notification
-    try { DataManager.addNotification(message, type); } catch (e) {}
-
-    // Create or reuse notification area
     let area = document.getElementById('notification-area');
     if (!area) {
         area = document.createElement('div');
         area.id = 'notification-area';
-        area.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index:10000; display:flex; flex-direction:column; gap:10px; max-width:320px;';
+        area.style.cssText = 'position: fixed; top: 80px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; max-width: 320px;';
         document.body.appendChild(area);
     }
 
     const el = document.createElement('div');
-    el.style.cssText = `padding:12px 16px; border-radius:8px; color:white; font-weight:700; box-shadow:0 6px 18px rgba(0,0,0,0.4);`;
+    el.style.cssText = `padding: 12px 16px; border-radius: 8px; color: white; font-weight: 700; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); animation: slideIn 0.3s ease;`;
     el.textContent = message;
+
     if (type === 'success') el.style.backgroundColor = '#4caf50';
     else if (type === 'error') el.style.backgroundColor = '#f44336';
+    else if (type === 'warning') el.style.backgroundColor = '#ff9800';
     else el.style.backgroundColor = '#333';
 
-    // Add dismiss button
-    const dismiss = document.createElement('button');
-    dismiss.textContent = '✕';
-    dismiss.style.cssText = 'margin-left:10px;background:transparent;border:none;color:white;font-weight:700;cursor:pointer;float:right';
-    dismiss.onclick = () => el.remove();
-    el.appendChild(dismiss);
-
     area.prepend(el);
-
-    // Auto-remove after 6s (unless admin wants to keep)
-    setTimeout(() => el.remove(), 6000);
+    setTimeout(() => el.remove(), 5000);
 }
 
-// Add animation styles
-if (!document.getElementById('notification-styles')) {
-    const style = document.createElement('style');
-    style.id = 'notification-styles';
-    style.textContent = `
-        @keyframes slideIn {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-        @keyframes slideOut {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-            to {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-        }
-    `;
-    document.head.appendChild(style);
+function scrollToSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (section) {
+        section.scrollIntoView({ behavior: 'smooth' });
+    }
 }
+
+// ==================
+// Hero Video Carousel
+// ==================
+
+function initHeroCarousel() {
+    try {
+        const videoEl = document.getElementById('hero-video');
+        const nextBtn = document.getElementById('next-video-btn');
+
+        if (!videoEl || !nextBtn) return;
+
+        const movieList = [
+            'videos/hero-1.mp4',
+            'videos/hero-2.mp4',
+            'videos/hero-3.mp4',
+            'videos/hero-4.mp4'
+        ];
+
+        let currentIndex = 0;
+
+        nextBtn.addEventListener('click', function() {
+            currentIndex = (currentIndex + 1) % movieList.length;
+            const newSrc = movieList[currentIndex];
+            
+            // Update video source
+            videoEl.src = newSrc;
+            videoEl.load();
+            videoEl.play().catch(err => {
+                console.log('Video play blocked:', err);
+            });
+        });
+    } catch (error) {
+        console.error('Hero carousel error:', error);
+    }
+}
+
+// ==================
+// Page Load Initialization
+// ==================
+
+document.addEventListener('DOMContentLoaded', async function() {
+    // Initialize hero carousel
+    initHeroCarousel();
+
+    // Initialize music system
+    await MusicManager.init();
+
+    // Enable music on first user interaction (browser autoplay policy)
+    const enableMusicOnFirstInteraction = () => {
+        if (MusicManager.audioElement && MusicManager.audioElement.paused && MusicManager.tracks.length > 0) {
+            MusicManager.play(MusicManager.currentIndex);
+            console.log('🎵 Music enabled on user interaction');
+        }
+        // Remove listeners after first interaction
+        document.removeEventListener('click', enableMusicOnFirstInteraction);
+        document.removeEventListener('keydown', enableMusicOnFirstInteraction);
+        document.removeEventListener('touchstart', enableMusicOnFirstInteraction);
+    };
+
+    document.addEventListener('click', enableMusicOnFirstInteraction);
+    document.addEventListener('keydown', enableMusicOnFirstInteraction);
+    document.addEventListener('touchstart', enableMusicOnFirstInteraction);
+
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.code === 'Space') {
+            // Space to toggle music
+            if (e.target === document.body) {
+                e.preventDefault();
+                MusicManager.togglePlayPause();
+            }
+        }
+    });
+
+    // Auto-check if user is logged in
+    if (DataManager.isLoggedIn()) {
+        const session = DataManager.getSession();
+        console.log('User session active:', session.email);
+    }
+
+    // Track page visit
+    const pageVisit = {
+        page: window.location.pathname,
+        visitedAt: new Date().toISOString()
+    };
+    let visits = JSON.parse(localStorage.getItem('pageVisits') || '[]');
+    visits.push(pageVisit);
+    localStorage.setItem('pageVisits', JSON.stringify(visits));
+
+    // Show notification if new to site
+    if (!localStorage.getItem('siteVisited')) {
+        showNotification('Welcome to SYM40N Gaming!', 'success');
+        localStorage.setItem('siteVisited', 'true');
+    }
+
+    // Add animation styles if not present
+    if (!document.getElementById('app-styles')) {
+        const style = document.createElement('style');
+        style.id = 'app-styles';
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                }
+                to {
+                    opacity: 1;
+                }
+            }
+
+            audio {
+                max-width: 100%;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+});
+
+// ==================
+// Admin Functions
+// ==================
+
+window.showAdminLogin = function() {
+    const adminPassword = prompt('Enter Admin Password:');
+    if (adminPassword && adminPassword === 'admin@2025') {
+        localStorage.setItem('adminToken', Date.now());
+        window.location.href = 'admin.html';
+    } else if (adminPassword !== null) {
+        showNotification('Invalid admin password!', 'error');
+    }
+};
+
+// Mobile admin trigger: triple-tap to show admin login
+(function setupMobileAdminTrigger() {
+    let tapTimestamps = [];
+    const TRIPLE_TAP_WINDOW = 1200;
+
+    document.addEventListener('touchend', function(e) {
+        const now = Date.now();
+        tapTimestamps.push(now);
+
+        if (tapTimestamps.length > 3) tapTimestamps.shift();
+
+        if (tapTimestamps.length === 3 && (tapTimestamps[2] - tapTimestamps[0] <= TRIPLE_TAP_WINDOW)) {
+            tapTimestamps = [];
+            window.showAdminLogin();
+        }
+
+        setTimeout(() => { tapTimestamps = []; }, TRIPLE_TAP_WINDOW + 100);
+    }, { passive: true });
+})();
+
+// ==================
+// Export for other pages
+// ==================
+
+window.DataManager = DataManager;
+window.MusicManager = MusicManager;
+window.showNotification = showNotification;
+window.scrollToSection = scrollToSection;
+window.validateEmail = validateEmail;
+window.validatePassword = validatePassword;
