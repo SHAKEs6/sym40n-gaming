@@ -19,7 +19,6 @@ const io = new Server(server, {
 });
 
 const PORT = process.env.PORT || 3000;
-const ADMIN_PASS = process.env.ADMIN_PASS || 'admin@2025';
 
 // ========================================
 // Path Configuration
@@ -87,50 +86,13 @@ if (!config.vapidKeys) {
   config.vapidKeys = webpush.generateVAPIDKeys();
   saveConfig();
 }
-webpush.setVapidDetails('mailto:admin@localhost', config.vapidKeys.publicKey, config.vapidKeys.privateKey);
+webpush.setVapidDetails('mailto:support@sym40n.com', config.vapidKeys.publicKey, config.vapidKeys.privateKey);
 
 // ========================================
-// User Management Functions
+// Authentication Middleware (Removed Admin)
 // ========================================
 
-function loadUsers() {
-  try {
-    return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-  } catch (e) {
-    return { users: [] };
-  }
-}
-
-function saveUsers(data) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2));
-}
-
-// Ensure at least one admin user
-(() => {
-  const u = loadUsers();
-  if (!u.users || u.users.length === 0) {
-    const hash = bcrypt.hashSync(ADMIN_PASS, 10);
-    u.users = [{ username: 'admin', passwordHash: hash, role: 'admin' }];
-    saveUsers(u);
-    console.log('✓ Created default admin user (username: admin, password: see ADMIN_PASS env var)');
-  }
-})();
-
-// ========================================
-// Authentication Middleware
-// ========================================
-
-function ensureAuthenticated(req, res, next) {
-  if (req.session && req.session.user) return next();
-  return res.status(401).json({ ok: false, error: 'unauthorized' });
-}
-
-function ensureAdmin(req, res, next) {
-  const pass = req.headers['x-admin-pass'] || req.body.password || req.query.password;
-  if (pass && pass === ADMIN_PASS) return next();
-  if (req.session && req.session.user && req.session.user.role === 'admin') return next();
-  return res.status(401).json({ ok: false, error: 'unauthorized' });
-}
+// Authentication middleware removed - no longer needed
 
 // ========================================
 // File Upload Configuration
@@ -164,30 +126,7 @@ function saveSubs(data) {
 }
 
 // ========================================
-// API Routes - Authentication
-// ========================================
-
-app.post('/auth/login', (req, res) => {
-  const { username, password } = req.body;
-  const u = loadUsers();
-  const user = (u.users || []).find(x => x.username === username);
-  if (!user) return res.status(401).json({ ok: false, error: 'Invalid credentials' });
-  if (!bcrypt.compareSync(password, user.passwordHash)) {
-    return res.status(401).json({ ok: false, error: 'Invalid credentials' });
-  }
-  req.session.user = { username: user.username, role: user.role };
-  return res.json({ ok: true, user: req.session.user });
-});
-
-app.post('/auth/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) return res.json({ ok: false, error: err.message });
-    return res.json({ ok: true });
-  });
-});
-
-// ========================================
-// API Routes - Music Management
+// API Routes - Music Management (Read-Only)
 // ========================================
 
 app.get('/api/music-files', (req, res) => {
@@ -200,75 +139,6 @@ app.get('/api/music-files', (req, res) => {
     console.error('Error reading music directory:', e);
     return res.json({ ok: false, files: [], error: e.message });
   }
-});
-
-app.post('/admin/upload-music', ensureAdmin, upload.single('music'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ ok: false, error: 'No file provided' });
-  }
-  const url = `/music/${req.file.filename}`;
-  console.log(`✓ Music uploaded: ${req.file.filename}`);
-  return res.json({ ok: true, filename: req.file.filename, url });
-});
-
-app.delete('/admin/remove-music/:filename', ensureAdmin, (req, res) => {
-  try {
-    const { filename } = req.params;
-    const filePath = path.join(MUSIC_DIR, filename);
-    
-    // Security check: prevent directory traversal
-    if (!filePath.startsWith(MUSIC_DIR)) {
-      return res.status(400).json({ ok: false, error: 'Invalid filename' });
-    }
-    
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      console.log(`✓ Music removed: ${filename}`);
-      return res.json({ ok: true });
-    } else {
-      return res.status(404).json({ ok: false, error: 'File not found' });
-    }
-  } catch (e) {
-    return res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-// ========================================
-// API Routes - Admin Controls
-// ========================================
-
-app.post('/admin/play-music', ensureAdmin, (req, res) => {
-  const { filename } = req.body;
-  if (!filename) {
-    return res.status(400).json({ ok: false, error: 'Missing filename' });
-  }
-  config.currentMusic = filename;
-  saveConfig();
-  const url = `/music/${filename}`;
-  console.log(`Broadcasting play-music event with url: ${url}`);
-  io.emit('play-music', { url, filename });
-  return res.json({ ok: true, url, filename });
-});
-
-app.post('/admin/set-decoration', ensureAdmin, (req, res) => {
-  const { decoration } = req.body;
-  config.decoration = decoration || null;
-  saveConfig();
-  io.emit('decoration', config.decoration);
-  console.log(`✓ Decoration set: ${decoration || 'none'}`);
-  return res.json({ ok: true, decoration: config.decoration });
-});
-
-app.post('/admin/notify', ensureAdmin, (req, res) => {
-  const { title, message } = req.body;
-  const payload = { title: title || 'Notification', message: message || '' };
-  io.emit('notification', payload);
-  console.log(`✓ Notification sent: ${title}`);
-  return res.json({ ok: true });
-});
-
-app.get('/admin/config', ensureAdmin, (req, res) => {
-  return res.json({ ok: true, config });
 });
 
 // ========================================
@@ -292,27 +162,6 @@ app.post('/subscribe', async (req, res) => {
     console.log(`✓ New subscription added`);
   }
   return res.json({ ok: true });
-});
-
-app.post('/admin/send-push', ensureAdmin, async (req, res) => {
-  const { title, message } = req.body;
-  const payload = JSON.stringify({ title: title || 'Push', message: message || '' });
-  const s = loadSubs();
-  const results = [];
-  for (const sub of (s.subs || [])) {
-    try {
-      await webpush.sendNotification(sub, payload);
-      results.push({ endpoint: sub.endpoint, ok: true });
-    } catch (err) {
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        s.subs = s.subs.filter(x => x.endpoint !== sub.endpoint);
-      }
-      results.push({ endpoint: sub.endpoint, ok: false, error: err.message });
-    }
-  }
-  saveSubs(s);
-  console.log(`✓ Push notification sent to ${results.filter(r => r.ok).length} devices`);
-  return res.json({ ok: true, results });
 });
 
 // ========================================
