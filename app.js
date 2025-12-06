@@ -12,10 +12,14 @@ const MusicManager = {
     isPlaying: false,
     audioElement: null,
     apiUrl: 'http://localhost:3000',
+    shuffleMode: false,
+    shuffledIndices: [],
+    sharedAudioElement: null,
 
     // Initialize music system
     init: async function() {
         try {
+            // Check if audio element already exists in DOM (shared across pages)
             this.audioElement = document.getElementById('bg-music');
             if (!this.audioElement) {
                 this.audioElement = document.createElement('audio');
@@ -29,18 +33,50 @@ const MusicManager = {
 
             // Fetch music files from server
             await this.loadTracks();
+            
+            // Restore shuffle mode from localStorage
+            const savedShuffleMode = localStorage.getItem('shuffleMode') === 'true';
+            this.shuffleMode = savedShuffleMode;
+            
+            // Restore playback state from sessionStorage
+            const savedCurrentIndex = sessionStorage.getItem('currentTrackIndex');
+            const savedIsPlaying = sessionStorage.getItem('isPlaying') === 'true';
+            const savedCurrentTime = parseFloat(sessionStorage.getItem('currentTime')) || 0;
+            
+            if (savedCurrentIndex !== null) {
+                this.currentIndex = parseInt(savedCurrentIndex);
+            }
+            
+            // Setup UI before restoring playback
             this.setupUI();
             this.attachEventListeners();
             this.connectWebSocket();
             
-            // Auto-start music after a short delay
-            setTimeout(() => {
-                this.autoStartMusic();
-            }, 1000);
+            // Restore shuffle indices if in shuffle mode
+            if (this.shuffleMode) {
+                const savedShuffleIndices = sessionStorage.getItem('shuffledIndices');
+                if (savedShuffleIndices) {
+                    this.shuffledIndices = JSON.parse(savedShuffleIndices);
+                } else {
+                    this.generateShuffleOrder();
+                }
+            }
+            
+            // Restore music playback
+            if (savedIsPlaying) {
+                this.play(this.currentIndex, false); // Don't reset time yet
+                if (savedCurrentTime > 0) {
+                    this.audioElement.currentTime = savedCurrentTime;
+                }
+            } else {
+                // Still load the track but don't play
+                this.loadTrack(this.currentIndex);
+            }
         } catch (error) {
             console.error('Music Manager Init Error:', error);
             this.loadLocalFallback();
-            setTimeout(() => this.autoStartMusic(), 1000);
+            this.setupUI();
+            this.attachEventListeners();
         }
     },
 
@@ -51,18 +87,49 @@ const MusicManager = {
             return;
         }
         
-        // Check if user has previously enabled music
-        const musicEnabled = localStorage.getItem('musicEnabled') !== 'false';
+        // Always play music when browser is opened
+        const wasPlayingBefore = sessionStorage.getItem('isPlaying') === 'true';
         
-        if (musicEnabled) {
-            this.play(0);
-            console.log('🎵 Auto-playing background music');
-        } else {
-            console.log('Music disabled by user preference');
+        if (wasPlayingBefore) {
+            // Already restored and playing in init()
+            return;
         }
+        
+        // First time or new session - start playing
+        if (this.shuffleMode) {
+            this.generateShuffleOrder();
+        }
+        
+        this.play(0);
+        localStorage.setItem('musicEnabled', 'true');
+        console.log('🎵 Starting music playback');
     },
 
-    // Load tracks from backend API
+    // Generate shuffle order
+    generateShuffleOrder: function() {
+        this.shuffledIndices = Array.from({length: this.tracks.length}, (_, i) => i);
+        // Fisher-Yates shuffle
+        for (let i = this.shuffledIndices.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.shuffledIndices[i], this.shuffledIndices[j]] = [this.shuffledIndices[j], this.shuffledIndices[i]];
+        }
+        sessionStorage.setItem('shuffledIndices', JSON.stringify(this.shuffledIndices));
+    },
+
+    // Load track without playing
+    loadTrack: function(index) {
+        if (!this.tracks.length) return;
+        
+        this.currentIndex = index % this.tracks.length;
+        const track = this.tracks[this.currentIndex];
+        
+        if (this.audioElement && track) {
+            this.audioElement.src = track.url;
+            this.audioElement.type = 'audio/mpeg';
+            this.audioElement.load();
+            console.log(`Loaded track: ${track.title}`);
+        }
+    },
     loadTracks: async function() {
         try {
             const response = await fetch(`${this.apiUrl}/api/music-files`);
@@ -183,22 +250,38 @@ const MusicManager = {
     },
 
     // Play specific track
-    play: function(index) {
+    play: function(index, shouldReset = true) {
         if (!this.tracks.length) return;
         
-        this.currentIndex = index % this.tracks.length;
+        // Determine actual index based on shuffle mode
+        let actualIndex = index;
+        if (this.shuffleMode && this.shuffledIndices.length > 0) {
+            actualIndex = this.shuffledIndices[index % this.shuffledIndices.length];
+        } else {
+            actualIndex = index % this.tracks.length;
+        }
+        
+        this.currentIndex = actualIndex;
         const track = this.tracks[this.currentIndex];
         
-        if (this.audioElement) {
+        if (this.audioElement && track) {
             this.audioElement.src = track.url;
             this.audioElement.type = 'audio/mpeg';
+            
+            if (shouldReset) {
+                this.audioElement.currentTime = 0;
+            }
             this.audioElement.load();
             
             const playPromise = this.audioElement.play();
             if (playPromise !== undefined) {
-                playPromise.catch(err => {
+                playPromise.then(() => {
+                    this.isPlaying = true;
+                    this.updateButtonState();
+                    this.savePlaybackState();
+                    console.log(`▶️ Playing: ${track.title}`);
+                }).catch(err => {
                     console.log('Autoplay blocked:', err.name, err.message);
-                    // On Android, audio requires user interaction
                     if (err.name === 'NotAllowedError') {
                         localStorage.setItem('musicPendingPlay', 'true');
                         this.showNotification('Tap anywhere to enable music', 'info');
@@ -208,10 +291,39 @@ const MusicManager = {
         }
     },
 
-    // Play next track
+    // Save playback state to sessionStorage
+    savePlaybackState: function() {
+        if (this.audioElement) {
+            sessionStorage.setItem('currentTrackIndex', this.currentIndex.toString());
+            sessionStorage.setItem('isPlaying', this.isPlaying.toString());
+            sessionStorage.setItem('currentTime', this.audioElement.currentTime.toString());
+        }
+    },
+
+    // Toggle shuffle mode
+    toggleShuffle: function() {
+        this.shuffleMode = !this.shuffleMode;
+        localStorage.setItem('shuffleMode', this.shuffleMode.toString());
+        
+        if (this.shuffleMode) {
+            this.generateShuffleOrder();
+            console.log('🔀 Shuffle mode ON');
+            this.showNotification('Shuffle mode enabled', 'success');
+        } else {
+            console.log('🔀 Shuffle mode OFF');
+            this.showNotification('Shuffle mode disabled', 'success');
+        }
+        
+        // Update shuffle button state if it exists
+        const shuffleBtn = document.getElementById('shuffle-btn');
+        if (shuffleBtn) {
+            shuffleBtn.classList.toggle('active', this.shuffleMode);
+        }
+    },
     playNext: function() {
         if (!this.tracks.length) return;
-        this.play(this.currentIndex + 1);
+        const nextIndex = this.currentIndex + 1;
+        this.play(nextIndex);
     },
 
     // Play previous track
@@ -227,12 +339,18 @@ const MusicManager = {
         if (this.audioElement.src === '') {
             this.play(0); // Start playing first track if none loaded
         } else if (this.audioElement.paused) {
-            this.audioElement.play().catch(err => {
-                console.log('Play action blocked:', err);
-                this.showNotification('Click anywhere to enable audio', 'info');
-            });
+            const playPromise = this.audioElement.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    this.savePlaybackState();
+                }).catch(err => {
+                    console.log('Play action blocked:', err);
+                    this.showNotification('Click anywhere to enable audio', 'info');
+                });
+            }
         } else {
             this.audioElement.pause();
+            this.savePlaybackState();
         }
     },
 
