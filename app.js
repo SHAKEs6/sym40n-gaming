@@ -22,6 +22,8 @@ const MusicManager = {
                 this.audioElement.id = 'bg-music';
                 this.audioElement.crossOrigin = 'anonymous';
                 this.audioElement.preload = 'auto';
+                this.audioElement.setAttribute('webkit-playsinline', 'true');
+                this.audioElement.setAttribute('playsinline', 'true');
                 document.body.appendChild(this.audioElement);
             }
 
@@ -189,11 +191,20 @@ const MusicManager = {
         
         if (this.audioElement) {
             this.audioElement.src = track.url;
+            this.audioElement.type = 'audio/mpeg';
             this.audioElement.load();
-            this.audioElement.play().catch(err => {
-                console.log('Autoplay blocked:', err);
-                this.showNotification('Enable audio to play music', 'info');
-            });
+            
+            const playPromise = this.audioElement.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(err => {
+                    console.log('Autoplay blocked:', err.name, err.message);
+                    // On Android, audio requires user interaction
+                    if (err.name === 'NotAllowedError') {
+                        localStorage.setItem('musicPendingPlay', 'true');
+                        this.showNotification('Tap anywhere to enable music', 'info');
+                    }
+                });
+            }
         }
     },
 
@@ -379,10 +390,18 @@ function initHeroCarousel() {
             
             // Update video source
             videoEl.src = newSrc;
+            videoEl.type = 'video/mp4';
             videoEl.load();
-            videoEl.play().catch(err => {
-                console.log('Video play blocked:', err);
-            });
+            
+            // Reset playback position
+            videoEl.currentTime = 0;
+            
+            const playPromise = videoEl.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(err => {
+                    console.log('Video play blocked:', err.name);
+                });
+            }
         });
     } catch (error) {
         console.error('Hero carousel error:', error);
@@ -400,11 +419,16 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Initialize music system
     await MusicManager.init();
 
-    // Enable music on first user interaction (browser autoplay policy)
+    // Enable music on first user interaction (browser autoplay policy, especially Android)
     const enableMusicOnFirstInteraction = () => {
-        if (MusicManager.audioElement && MusicManager.audioElement.paused && MusicManager.tracks.length > 0) {
-            MusicManager.play(MusicManager.currentIndex);
-            console.log('🎵 Music enabled on user interaction');
+        if (MusicManager.tracks.length > 0) {
+            // Check if we have pending playback from autoplay block
+            if (localStorage.getItem('musicPendingPlay') === 'true' || (MusicManager.audioElement && MusicManager.audioElement.paused)) {
+                MusicManager.play(MusicManager.currentIndex);
+                localStorage.setItem('musicEnabled', 'true');
+                localStorage.removeItem('musicPendingPlay');
+                console.log('🎵 Music enabled on user interaction');
+            }
         }
         // Remove listeners after first interaction
         document.removeEventListener('click', enableMusicOnFirstInteraction);
