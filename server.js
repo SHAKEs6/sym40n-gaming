@@ -147,33 +147,45 @@ app.post('/api/logout', async (req, res) => {
 });
 
 app.get('/api/admin/settings', authMiddleware, (req, res) => {
-  db.get('SELECT settings FROM admin WHERE id = ?', [req.user.id], (err, row) => {
-    if (err) return res.status(500).json({ error: 'db error' });
-    res.json({ settings: JSON.parse(row.settings || '{}') });
-  });
+  pool.query('SELECT settings FROM admin WHERE id = $1', [req.user.id])
+    .then(r => {
+      if (r.rowCount === 0) return res.status(404).json({ error: 'admin not found' });
+      const settings = r.rows[0].settings || {};
+      res.json({ settings });
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ error: 'db error' });
+    });
 });
 
 app.post('/api/admin/settings', authMiddleware, (req, res) => {
   const settings = req.body || {};
-  db.run('UPDATE admin SET settings = ? WHERE id = ?', [JSON.stringify(settings), req.user.id], function(err) {
-    if (err) return res.status(500).json({ error: 'db error' });
-    res.json({ ok: true });
-  });
+  pool.query('UPDATE admin SET settings = $1 WHERE id = $2', [settings, req.user.id])
+    .then(() => res.json({ ok: true }))
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ error: 'db error' });
+    });
 });
 
 app.post('/api/admin/change-password', authMiddleware, (req, res) => {
   const { oldPassword, newPassword } = req.body || {};
   if (!oldPassword || !newPassword) return res.status(400).json({ error: 'oldPassword and newPassword required' });
-  db.get('SELECT password FROM admin WHERE id = ?', [req.user.id], (err, row) => {
-    if (err) return res.status(500).json({ error: 'db error' });
-    if (!row) return res.status(404).json({ error: 'admin not found' });
-    if (!bcrypt.compareSync(oldPassword, row.password)) return res.status(401).json({ error: 'old password incorrect' });
-    const hash = bcrypt.hashSync(newPassword, 10);
-    db.run('UPDATE admin SET password = ? WHERE id = ?', [hash, req.user.id], function(e) {
-      if (e) return res.status(500).json({ error: 'db error' });
+  (async () => {
+    try {
+      const r = await pool.query('SELECT password FROM admin WHERE id = $1', [req.user.id]);
+      if (r.rowCount === 0) return res.status(404).json({ error: 'admin not found' });
+      const row = r.rows[0];
+      if (!bcrypt.compareSync(oldPassword, row.password)) return res.status(401).json({ error: 'old password incorrect' });
+      const hash = bcrypt.hashSync(newPassword, 10);
+      await pool.query('UPDATE admin SET password = $1 WHERE id = $2', [hash, req.user.id]);
       res.json({ ok: true });
-    });
-  });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'db error' });
+    }
+  })();
 });
 
 // Socket.IO signaling for WebRTC streaming
@@ -218,6 +230,11 @@ io.on('connection', (socket) => {
       console.log('Viewer disconnected', socket.id);
     }
   });
+});
+
+// Serve admin page at /admin for convenience
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 server.listen(APP_PORT, () => console.log(`Server listening on port ${APP_PORT}`));
