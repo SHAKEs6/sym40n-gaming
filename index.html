@@ -31,25 +31,23 @@
 
         <section class="hero-section">
             <div class="hero-vid">
-                <video loop autoplay muted plays-inline class="hero-video">
+                <video loop autoplay muted playsinline aria-hidden="true" class="hero-video">
                     <source src="videos/hero-1.mp4" type="video/mp4">
                 </video>
 
                 <div class="hero-info">
-                    <h1>SHAKESv</h1>
+                    <h1 class="logo-text">SHAKESv</h1>
                     <p>Enter the metagame Layer Unleash the Play Economy</p>
                     <button>Watch Trailer</button>
                 </div>
                 
                 <h1 class="gaming-text">Gaming</h1>
-                <div class="next-btn">
-                    NEXT
-                </div>
+                <button class="next-btn" aria-label="Next hero video">NEXT</button>
             </div>
         </section>
 
         <section class="footer">
-            <p>©SHAKES 2025. All rights reserved</p>
+            <p>©SHAKES 2026. All rights reserved</p>
             <ul>
                 <li><a href="#"><i class='bx bxl-youtube'></i> </a></li>
                 <li><a href="#"><i class='bx bxl-google'></i> </a></li>
@@ -60,6 +58,6 @@
         </section>
     </div>
 
-    <script src="app.js"></script>
+    <script type="module" src="/src/main.js"></script>
 </body>    
 </html>

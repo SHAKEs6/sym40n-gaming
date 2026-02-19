@@ -109,6 +109,29 @@ Sym40n is a modern Web3 gaming platform featuring real-time game downloads, user
    ```bash
    git branch gh-pages
    git checkout gh-pages
+## 🐳 Production Docker (recommended)
+
+This repo contains a `Dockerfile` that builds the Vite frontend and runs `server.js` in production. Example steps to build and run locally (requires Docker):
+
+```bash
+# build image
+docker build -t sym40n-gaming:latest .
+
+# run container (set DATABASE_URL env to your Postgres instance)
+docker run -p 3000:3000 \
+  -e DATABASE_URL=postgres://postgres:postgres@host:5432/sym40n \
+  -e JWT_SECRET=your_jwt_secret \
+  -e ADMIN_PASSWORD=YourAdminPass \
+  sym40n-gaming:latest
+```
+
+Render users: this repo includes `render.yaml` to deploy via Render using the Dockerfile. In Render dashboard create a new web service, connect your GitHub repo, and Render will build the Docker image and deploy. Set these environment variables on Render:
+
+- `DATABASE_URL` (managed Postgres URL)
+- `JWT_SECRET` (secure random string)
+- `ADMIN_PASSWORD` (if you want to pre-seed admin)
+
+After deployment, the app will be available at the URL Render provides; admin login is `admin` / the seeded password.
    git push origin gh-pages
    ```
 
@@ -222,6 +245,49 @@ Edit `login.html` and `games.html`:
 4. ✅ Configure custom domain (optional)
 5. ✅ Monitor analytics
 6. ✅ Gather user feedback
+
+---
+
+## 🧪 Local Postgres (Docker)
+
+If you want to run the backend with a local Postgres instance (recommended for development), use the provided `docker-compose.yml` service and the `.env.example`.
+
+1. Copy environment file and adjust values if needed:
+
+```bash
+cp .env.example .env
+# edit .env to taste
+```
+
+2. Start Postgres with Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+3. Install dependencies and start the server (first run will create required tables):
+
+```bash
+npm install
+npm run dev   # uses nodemon
+# or
+npm start
+```
+
+4. Login using the seeded admin (or change `ADMIN_PASSWORD` in `.env` before first run):
+
+POST /api/login -> returns `accessToken` + `refreshToken`.
+
+5. Stop and remove containers when finished:
+
+```bash
+docker compose down
+```
+
+Notes:
+- The app looks for `DATABASE_URL` (or `PG_URI`) environment variables. If you use Render or a managed Postgres, set `DATABASE_URL` accordingly.
+- The server will seed an `admin` user on first DB initialization if one doesn't exist.
+
 
 ## 📞 Support
 

@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Admin Live Stream</title>
+    <style>body{background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif}video{width:80%;max-width:900px;border:2px solid #444;margin:10px auto;display:block}</style>
+  </head>
+  <body>
+    <h2 style="text-align:center">Admin Live Stream</h2>
+    <p style="text-align:center">Open this page and click <strong>Start Stream</strong>. Viewers should open <a href="/live.html">Live Page</a>.</p>
+    <div style="text-align:center">
+      <button id="startBtn">Start Stream</button>
+    </div>
+    <video id="localVideo" autoplay muted playsinline></video>
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="/js/stream-client.js"></script>
+  </body>
+</html>

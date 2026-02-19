@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: sym40n-gaming
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    region: oregon
+    routes:
+      - type: web
+        source: /
